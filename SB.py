@@ -5,10 +5,12 @@ import math
 import collections
 import numpy as np
 
-
+r"""
+Mostly copied from https://anonymous.4open.science/repository/c6d4060d-bdac-4d31-839e-8579650255b3/lib/calculators.py
+"""
 class UnboundedHistogram(object):
     r"""
-    Stateful Histogram approximate CDF
+    Histogram to approximate CDF
     """
     def __init__(self, max_history):
         self.max_history =  max_history
@@ -30,7 +32,7 @@ class UnboundedHistogram(object):
     
 class BatchedRelativeProbabilityCalculator(object):
     r"""
-    Pass losses return probabilities
+    Take losses, return probability
     """
     def __init__(self, history_length, beta, sampling_min=0):
         self.historical_losses = UnboundedHistogram(history_length)         
@@ -57,22 +59,14 @@ class BatchedRelativeProbabilityCalculator(object):
         
     
     
-class ExampleSelector(object):
-    r"""
-    Filter inputs/targets based on losses
-    
-    preserve loss history
-    """
+class SBSelector(object):
     def __init__(self, size_to_backprops, rank):
         self.size_to_backprops = size_to_backprops
-        self.num_selected_for_bp = 0
-        self.epoch_counter = 0
         
         self.candidate_inputs = send_data_to_device(torch.Tensor([]), rank)
         self.candidate_targets = send_data_to_device(torch.LongTensor([]), rank)
         
         self.mask_calculator = BatchedRelativeProbabilityCalculator(SB_HISTORY_SIZE, SB_BETA)
-        
         self.stale_loss = collections.defaultdict()
         
     
@@ -86,8 +80,6 @@ class ExampleSelector(object):
 
             self.candidate_inputs = self.candidate_inputs[self.size_to_backprops:]
             self.candidate_targets = self.candidate_targets[self.size_to_backprops:]
-
-            self.num_selected_for_bp += self.size_to_backprops
 
             return new_inputs,new_targets
         else: 
@@ -117,6 +109,7 @@ class ExampleSelector(object):
         if self._use_stale(epoch):
             return self._update_from_stale(inputs, targets, indexes)
         else:
+            # Selection pass
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             return self._update_fresh(inputs, targets, loss, indexes)

@@ -9,9 +9,6 @@ import numpy as np
 __all__ = ['IndexedMNIST']
 
 
-FULL_TRAINSET_EVALUATE_BATCH_SIZE = 600
-
-
 class IndexedMNIST(Dataset):
     """https://github.com/pytorch/examples/blob/master/mnist/main.py"""
     MEAN = 0.1307

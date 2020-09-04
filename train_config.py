@@ -9,50 +9,31 @@ import numpy as np
 default_device = 0
 
 ##########################################
-# MERGE COHERENT GRADIENT
-##########################################
+# SB config
+
 SELECTIVE_BACKPROP = False
 SB_BETA = 1
 SB_HISTORY_SIZE = 1024
-SB_STALNESS = 0
+SB_STALNESS = 3
 
 ################################
+# Compaction config
 
-'''CONFIDENCE_COMPACTION = False
-CONFIDENCE_COMPACTION_CONFIDENCE_THRESH = .9'''
-
-
-
-CORRECT_COMPACTION = True
-CORRECT_THRESH = 0
-CONFIDENT_CORRECT_THRESH = 0.8
-
+CORRECT_COMPACTION = False
+CONFIDENT_CORRECT_THRESH = .8
 
 COMPACTION_STALNESS = 0
 COMPACTION_SAMPLE_PROB = .1
 WARMUP_EPOCH = 0
 
 
-################################
-
-
-def exp_decay(num, iteration, decay=0):
-    return num * np.exp(decay * iteration)
-
-
-def exp_grow(num, iteration, rate=0):
-    return num * (1 + rate)**iteration
-
-
-def sigmoid_grow(iteration, rate=0):
-    return 1 / (np.exp(rate * iteration) + 1)
-
-##########################################
-# Loss
 ##########################################
 
 LOSS_TYPE = 'mean'
-LOG_TO_DISK = True
+
+##########################################
+
+LOG_TO_DISK = False
 
 ##########################################
 # Device Management
@@ -88,6 +69,16 @@ def send_model_to_device(model, rank):
     return model.cuda(device)
     #return torch.nn.DataParallel(model).cuda(device)
 
+def exp_decay(num, iteration, decay=0):
+    return num * np.exp(decay * iteration)
+
+
+def exp_grow(num, iteration, rate=0):
+    return num * (1 + rate)**iteration
+
+
+def sigmoid_grow(iteration, rate=0):
+    return 1 / (np.exp(rate * iteration) + 1)
 
 if __name__ == '__main__':
     pass

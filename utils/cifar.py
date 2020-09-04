@@ -6,8 +6,6 @@ import numpy as np
 
 __all__ = ['IndexedCifar10']
 
-FULL_TRAINSET_EVALUATE_BATCH_SIZE = 600
-
 class IndexedCifar10(Dataset):
     ##### Normalization
     MEAN = (0.4914, 0.4822, 0.4465)
