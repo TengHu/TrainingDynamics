@@ -1,4 +1,4 @@
-Working in Progress !!
+This project is working in progress
 
 
 pip install -r requirements.txt
