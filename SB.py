@@ -55,7 +55,7 @@ class BatchedRelativeProbabilityCalculator(object):
     def select(self, losses):
         select_probability = self._get_probability(losses)
         draw = np.random.uniform(0, 1, size=select_probability.shape)
-        return draw < select_probability
+        return draw < select_probability, select_probability
         
     
     
@@ -65,38 +65,47 @@ class SBSelector(object):
         
         self.candidate_inputs = send_data_to_device(torch.Tensor([]), rank)
         self.candidate_targets = send_data_to_device(torch.LongTensor([]), rank)
+        self.candidate_upweights = send_data_to_device(torch.Tensor([]), rank)
+        self.rank = rank
         
         self.mask_calculator = BatchedRelativeProbabilityCalculator(SB_HISTORY_SIZE, SB_BETA)
         self.stale_loss = collections.defaultdict()
         
     
-    def _update(self, inputs, targets, mask):
+    def _update(self, inputs, targets, mask, upweights):
+        
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
+        self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.from_numpy(upweights[mask]), self.rank)), 0)
 
+        
         if len(self.candidate_inputs) >= self.size_to_backprops:
             new_inputs = self.candidate_inputs[:self.size_to_backprops] #.clone()
             new_targets = self.candidate_targets[:self.size_to_backprops] #.clone()
-
+            new_upweights = self.candidate_upweights[:self.size_to_backprops]
+            
+            
+            
             self.candidate_inputs = self.candidate_inputs[self.size_to_backprops:]
             self.candidate_targets = self.candidate_targets[self.size_to_backprops:]
+            self.candidate_upweights = self.candidate_upweights[self.size_to_backprops:]
 
-            return new_inputs,new_targets
+            return new_inputs, new_targets, new_upweights
         else: 
-            return torch.empty(0), torch.empty(0)
+            return torch.empty(0), torch.empty(0), torch.empty(0)
     
     def _update_from_stale(self, inputs, targets, indexes):
-        mask = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
-        return self._update(inputs, targets, mask)
+        mask, probs = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
+        return self._update(inputs, targets, mask, 1 / probs)
     
     def _update_fresh(self, inputs, targets, losses, index):
-        mask = self.mask_calculator.select(losses.detach().cpu().numpy())
+        mask, probs = self.mask_calculator.select(losses.detach().cpu().numpy())
 
         # save losses
         if SB_STALNESS > 0:
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
-        return self._update(inputs, targets, mask)
+        return self._update(inputs, targets, mask, 1 / probs)
             
     def _use_stale(self, epoch):
         return SB_STALNESS != 0 and epoch % SB_STALNESS != 0

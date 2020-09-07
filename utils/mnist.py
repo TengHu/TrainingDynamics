@@ -25,10 +25,18 @@ class IndexedMNIST(Dataset):
     def __init__(self, transform=_transform, root='./data', train=True, download=True):
         self.mnist = datasets.MNIST(
             root=root, download=download, train=train, transform=transform)
+        
+        if train:
+            self.random_labels = np.load('dataset_overrides/50pct_random_label.npy')
+                
         self.train = train
 
     def __getitem__(self, index):
         data, target = self.mnist[index]
+        
+        if hasattr(self, 'random_labels'):
+            target = self.random_labels[index]
+        
         return data, target, index
 
     def __len__(self):

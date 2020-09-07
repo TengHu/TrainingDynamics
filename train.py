@@ -24,6 +24,7 @@ from train_config import *
 from SB import SBSelector
 from compaction import CompactionSelector
 
+#from scheduler import BackpropsMultiStepLR
 try:
     import cPickle as pickle
 except ModuleNotFoundError:
@@ -220,9 +221,13 @@ def run(rank, state):
         momentum=state['momentum'],
         nesterov=True,
         weight_decay=state['weight_decay'])
+    
+    r"""
+    We use scheduler to anneal learning rate based on number of BACKPROPS.
+    Look https://github.com/pytorch/pytorch/blob/v1.4.0/torch/optim/lr_scheduler.py#L394 for implementations.
+    """
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=state['schedule'], gamma=state['gamma'])
     
-
     title = state['arch']
 
     if state['resume']:
@@ -291,7 +296,7 @@ def run(rank, state):
         
         # BEFORE_RUN: accuracy_log
         accuracy_log = []
-        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, selector)
+        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector)
         test_loss, test_acc = test(rank, testloader, model, criterion, epoch)
 
         # append logger file
@@ -315,7 +320,6 @@ def run(rank, state):
             },
             is_best,
             checkpoint=state['save_dir'])
-        scheduler.step()
 
     train_logger.close()
     test_logger.close()
@@ -323,7 +327,7 @@ def run(rank, state):
     print('Best acc:')
     print(best_acc)
 
-def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, selector):
+def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector):
     global global_step
     
     model.train()
@@ -363,8 +367,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             r"""
             Select inputs and targets
             """
-            inputs, targets = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
+            inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
 
+            
             if inputs.nelement() == 0:
                 bar.next()
                 continue
@@ -373,6 +378,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ## compute output
         outputs = model(inputs)
         loss = criterion(outputs, targets)
+        
+        if SELECTIVE_BACKPROP and UPWEIGHT_LOSS:
+            loss = loss * upweights
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)
@@ -417,8 +425,10 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         optimizer.zero_grad()
         
+        
         if LOG_TO_DISK:
             train_logger.blob['backprops'] += [loss.nelement()]
+            train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
             
         num_backprops += loss.nelement()
         loss_mean.backward()
@@ -447,6 +457,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             top5=top5.avg,
         )
         bar.next()
+        
+        for _ in range(loss.nelement()):
+            scheduler.step()
         
         
     ### SelectiveBP

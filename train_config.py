@@ -14,13 +14,15 @@ default_device = 0
 SELECTIVE_BACKPROP = False
 SB_BETA = 1
 SB_HISTORY_SIZE = 1024
-SB_STALNESS = 3
+SB_STALNESS = 0
+
+UPWEIGHT_LOSS = False
 
 ################################
 # Compaction config
 
-CORRECT_COMPACTION = False
-CONFIDENT_CORRECT_THRESH = .8
+CORRECT_COMPACTION = True
+CONFIDENT_CORRECT_THRESH = .7
 
 COMPACTION_STALNESS = 0
 COMPACTION_SAMPLE_PROB = .1
@@ -33,7 +35,7 @@ LOSS_TYPE = 'mean'
 
 ##########################################
 
-LOG_TO_DISK = False
+LOG_TO_DISK = True
 
 ##########################################
 # Device Management
