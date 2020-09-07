@@ -21,7 +21,7 @@ UPWEIGHT_LOSS = False
 ################################
 # Compaction config
 
-CORRECT_COMPACTION = True
+CORRECT_COMPACTION = False
 CONFIDENT_CORRECT_THRESH = .7
 
 COMPACTION_STALNESS = 0

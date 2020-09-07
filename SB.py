@@ -76,7 +76,7 @@ class SBSelector(object):
         
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
-        self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.from_numpy(upweights[mask]), self.rank)), 0)
+        self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
 
         
         if len(self.candidate_inputs) >= self.size_to_backprops:
