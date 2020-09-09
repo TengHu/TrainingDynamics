@@ -17,3 +17,4 @@ python train.py --dataset mnist --arch convnet --lr 0.1 --momentum 0.9 --train-b
 
 
 
+
