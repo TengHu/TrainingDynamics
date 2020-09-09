@@ -1,6 +1,6 @@
 import pdb
 import torch
-from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, send_data_to_device
+from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, PROB_FLOOR, send_data_to_device
 import math
 import collections
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 r"""
 Mostly copied from https://anonymous.4open.science/repository/c6d4060d-bdac-4d31-839e-8579650255b3/lib/calculators.py
 """
-class UnboundedHistogram(object):
+class BoundedHistogram(object):
     r"""
     Histogram to approximate CDF
     """
@@ -35,7 +35,7 @@ class BatchedRelativeProbabilityCalculator(object):
     Take losses, return probability
     """
     def __init__(self, history_length, beta, sampling_min=0):
-        self.historical_losses = UnboundedHistogram(history_length)         
+        self.historical_losses = BoundedHistogram(history_length)         
         self.sampling_min = sampling_min
         self.beta = beta
 
@@ -68,12 +68,11 @@ class SBSelector(object):
         self.candidate_upweights = send_data_to_device(torch.Tensor([]), rank)
         self.rank = rank
         
-        self.mask_calculator = BatchedRelativeProbabilityCalculator(SB_HISTORY_SIZE, SB_BETA)
+        self.mask_calculator = BatchedRelativeProbabilityCalculator(SB_HISTORY_SIZE, SB_BETA, PROB_FLOOR)
         self.stale_loss = collections.defaultdict()
         
     
     def _update(self, inputs, targets, mask, upweights):
-        
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
         self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
@@ -83,8 +82,6 @@ class SBSelector(object):
             new_inputs = self.candidate_inputs[:self.size_to_backprops] #.clone()
             new_targets = self.candidate_targets[:self.size_to_backprops] #.clone()
             new_upweights = self.candidate_upweights[:self.size_to_backprops]
-            
-            
             
             self.candidate_inputs = self.candidate_inputs[self.size_to_backprops:]
             self.candidate_targets = self.candidate_targets[self.size_to_backprops:]
@@ -105,6 +102,7 @@ class SBSelector(object):
         if SB_STALNESS > 0:
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
+                
         return self._update(inputs, targets, mask, 1 / probs)
             
     def _use_stale(self, epoch):

@@ -260,7 +260,7 @@ def run(rank, state):
         train_logger.append_blob("correct compaction: {}, sample prob: {}, epoch: {}, stale: {}, confidence {}".format(CORRECT_COMPACTION, COMPACTION_SAMPLE_PROB, WARMUP_EPOCH, COMPACTION_STALNESS, CONFIDENT_CORRECT_THRESH))
 
     if SELECTIVE_BACKPROP:
-        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS))           
+        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, SB_WARMUP_EPOCH, PROB_FLOOR))           
     
     if SELECTIVE_BACKPROP:
         selector = SBSelector(trainloader.batch_size, rank)
@@ -349,6 +349,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     
     for batch_idx, (inputs, targets, index) in enumerate(trainloader):
 
+        print ("\n" + str(SB_WARMUP_EPOCH))
+        
         optimizer.zero_grad()
         model.train()
         
@@ -363,11 +365,14 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
         #######################################
         
+        
         if SELECTIVE_BACKPROP:
             r"""
             Select inputs and targets
             """
-            inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
+            
+            if epoch >= SB_WARMUP_EPOCH:
+                inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
 
             
             if inputs.nelement() == 0:
@@ -379,7 +384,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         
-        if SELECTIVE_BACKPROP and UPWEIGHT_LOSS:
+        
+        if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
+            #print ("\n" + str(upweights.max().item()))
             loss = loss * upweights
         
         #####################################################################################################################
@@ -465,6 +472,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     ### SelectiveBP
     if LOG_TO_DISK:
         train_logger.blob['epoch_backprops'] += [num_backprops]  
+        train_logger.blob['epoch_pred1'] += [top1.avg / 100]
     
     del inputs, targets, outputs, loss
     

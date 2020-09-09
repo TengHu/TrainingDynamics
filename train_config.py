@@ -11,12 +11,15 @@ default_device = 0
 ##########################################
 # SB config
 
-SELECTIVE_BACKPROP = False
+SELECTIVE_BACKPROP = True
 SB_BETA = 1
 SB_HISTORY_SIZE = 1024
 SB_STALNESS = 0
 
-UPWEIGHT_LOSS = False
+SB_WARMUP_EPOCH = 7
+PROB_FLOOR = 0.05
+
+UPWEIGHT_LOSS = True
 
 ################################
 # Compaction config
@@ -26,7 +29,7 @@ CONFIDENT_CORRECT_THRESH = .7
 
 COMPACTION_STALNESS = 0
 COMPACTION_SAMPLE_PROB = .1
-WARMUP_EPOCH = 0
+WARMUP_EPOCH = 1
 
 
 ##########################################
