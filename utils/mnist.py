@@ -27,7 +27,7 @@ class IndexedMNIST(Dataset):
             root=root, download=download, train=train, transform=transform)
         
         if train:
-            self.random_labels = np.load('dataset_overrides/50pct_random_label.npy')
+            self.random_labels = np.load('dataset_overrides/mnist/50pct_random_label.npy')
                 
         self.train = train
 

@@ -348,9 +348,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         selector.init_for_this_epoch(epoch)
     
     for batch_idx, (inputs, targets, index) in enumerate(trainloader):
-
-        print ("\n" + str(SB_WARMUP_EPOCH))
-        
         optimizer.zero_grad()
         model.train()
         
