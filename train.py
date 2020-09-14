@@ -415,7 +415,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ################################################################################################################
         
         if LOG_TO_DISK:
-            train_logger.blob['train'] += [index.cpu().detach().numpy()]
+            train_logger.blob['correct_pred'] += [index[targets == pred[0]].cpu().detach().numpy()]
             train_logger.blob['train_loss'] += [loss.mean().item()]
             train_logger.blob['train_pred1'] += [prec1.item() / 100]
         
