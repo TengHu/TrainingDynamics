@@ -21,7 +21,7 @@ from utils.mnist import IndexedMNIST
 from utils.cifar import IndexedCifar10
 import random
 from train_config import *
-from SB import SBSelector
+from reweighter import SBSelector
 from compaction import CompactionSelector
 
 #from scheduler import BackpropsMultiStepLR
@@ -371,6 +371,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             if epoch >= SB_WARMUP_EPOCH:
                 inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
 
+            
             
             if inputs.nelement() == 0:
                 bar.next()
