@@ -310,7 +310,7 @@ def run(rank, state):
         # save model
         is_best = test_acc > best_acc
         best_acc = max(test_acc, best_acc)
-        save_checkpoint(
+        '''save_checkpoint(
             {
                 'epoch': epoch + 1,
                 'state_dict': model.state_dict(),
@@ -319,7 +319,7 @@ def run(rank, state):
                 'optimizer': optimizer.state_dict(),
             },
             is_best,
-            checkpoint=state['save_dir'])
+            checkpoint=state['save_dir'])'''
 
     train_logger.close()
     test_logger.close()
