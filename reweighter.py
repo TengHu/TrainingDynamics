@@ -3,6 +3,7 @@ from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, PROB_FLOOR, send
 import math
 import collections
 import numpy as np
+import torch.nn as nn
 
 r"""
 Mostly copied from https://anonymous.4open.science/repository/c6d4060d-bdac-4d31-839e-8579650255b3/lib/calculators.py
@@ -134,4 +135,54 @@ class SBSelector(object):
             # Selection pass
             outputs = model(inputs)
             loss = criterion(outputs, targets)
+            
             return self._update_fresh(inputs, targets, loss, indexes)
+        
+    def update_examples_with_grad_norm(self, model, criterion, inputs, targets, indexes, epoch):
+        
+        #### Compute grad
+        def _capture_activations(layer, input, output):
+            setattr(layer, "activations", input[0].detach())
+        
+        def _capture_backprops(layer, _input, output):
+
+            assert not hasattr(layer, 'backprops_list'), "Seeing result of previous backprop, use clear_backprops(model) to clear"
+            if not hasattr(layer, 'backprops_list'):
+                setattr(layer, 'backprops_list', [])
+            layer.backprops_list.append(output[0].detach())
+
+        
+        last_layer = torch.nn.Sequential(*(list(model.modules())))[-1]
+        
+        handles = []
+        handles.append(last_layer.register_forward_hook(_capture_activations))
+        handles.append(last_layer.register_backward_hook(_capture_backprops))
+        
+        
+         
+        # model.fc3.backprops_list
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+
+        
+        loss.mean().backward()
+        
+        A = last_layer.activations
+        n = A.shape[0]
+        B = last_layer.backprops_list[0] * n
+        og = torch.einsum('ni,nj->nij', B, A)
+        
+        scores = og.norm(p=2, dim=(1,2))
+        
+        #### Clear up
+        del last_layer.backprops_list
+        del last_layer.activations
+        
+        for handle in handles:
+            handle.remove()
+            
+            
+        return self._update_fresh(inputs, targets, scores, indexes)
+
+        
+   
