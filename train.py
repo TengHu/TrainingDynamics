@@ -369,7 +369,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             """
             
             if epoch >= SB_WARMUP_EPOCH:
-                inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
+                inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, index, epoch)
 
             
             
@@ -415,7 +415,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ################################################################################################################
         
         if LOG_TO_DISK:
-            train_logger.blob['correct_pred'] += [index[targets == pred[0]].cpu().detach().numpy()]
+            train_logger.blob['correct_pred'] += [indexes[targets == pred[0]].cpu().detach().numpy()]
             train_logger.blob['train_loss'] += [loss.mean().item()]
             train_logger.blob['train_pred1'] += [prec1.item() / 100]
         

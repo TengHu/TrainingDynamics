@@ -72,6 +72,7 @@ class SBSelector(object):
     def __init__(self, size_to_backprops, rank):
         self.size_to_backprops = size_to_backprops
         
+        self.candidate_indexes = send_data_to_device(torch.Tensor([]), rank)
         self.candidate_inputs = send_data_to_device(torch.Tensor([]), rank)
         self.candidate_targets = send_data_to_device(torch.LongTensor([]), rank)
         self.candidate_upweights = send_data_to_device(torch.Tensor([]), rank)
@@ -82,23 +83,26 @@ class SBSelector(object):
         
     
     def _update(self, inputs, targets, mask, upweights):
+        self.candidate_indexes = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
         self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
 
         
         if len(self.candidate_inputs) >= self.size_to_backprops:
+            new_indexes = self.candidate_indexes[:self.size_to_backprops]
             new_inputs = self.candidate_inputs[:self.size_to_backprops] #.clone()
             new_targets = self.candidate_targets[:self.size_to_backprops] #.clone()
             new_upweights = self.candidate_upweights[:self.size_to_backprops]
             
+            self.candidate_indexes = self.candidate_indexes[self.size_to_backprops:]
             self.candidate_inputs = self.candidate_inputs[self.size_to_backprops:]
             self.candidate_targets = self.candidate_targets[self.size_to_backprops:]
             self.candidate_upweights = self.candidate_upweights[self.size_to_backprops:]
 
-            return new_inputs, new_targets, new_upweights
+            return new_inputs, new_targets, new_upweights, new_indexes
         else: 
-            return torch.empty(0), torch.empty(0), torch.empty(0)
+            return torch.empty(0), torch.empty(0), torch.empty(0), torch.empty(0)
     
     def _update_from_stale(self, inputs, targets, indexes):
         mask, probs = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
@@ -113,6 +117,7 @@ class SBSelector(object):
                 self.stale_loss[idx.item()] = losses[i].item()
                 
         
+        
         return self._update(inputs, targets, mask, weights)
             
     def _use_stale(self, epoch):
@@ -122,7 +127,7 @@ class SBSelector(object):
         if not self._use_stale(epoch):
             self.stale_loss.clear()
     
-    def update_examples(self, model, criterion, inputs, targets, indexes, losses, epoch):
+    def update_examples(self, model, criterion, inputs, targets, indexes, epoch):
         if self._use_stale(epoch):
             return self._update_from_stale(inputs, targets, indexes)
         else:
