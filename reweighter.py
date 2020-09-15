@@ -83,7 +83,7 @@ class SBSelector(object):
         
     
     def _update(self, inputs, targets, mask, upweights):
-        self.candidate_indexes = torch.cat((self.candidate_inputs, inputs[mask]), 0)
+        self.candidate_indexes = torch.cat((self.candidate_indexes, inputs[mask]), 0)
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
         self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
