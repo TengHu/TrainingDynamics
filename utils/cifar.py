@@ -31,8 +31,8 @@ class IndexedCifar10(Dataset):
     def __getitem__(self, index):
         data, target = self.cifar10[index]
         
-        if train:
-            self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
+        #if train:
+        #    self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
         return data, target, index
 
     def __len__(self):
