@@ -347,12 +347,12 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
-    for batch_idx, (inputs, targets, index) in enumerate(trainloader):
+    for batch_idx, (inputs, targets, indexes) in enumerate(trainloader):
         optimizer.zero_grad()
         model.train()
         
         
-        if index.nelement() == 0:
+        if indexes.nelement() == 0:
             continue
         
         #######################################
@@ -369,7 +369,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             """
             
             if epoch >= SB_WARMUP_EPOCH:
-                inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, index, epoch)
+                inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
 
             
             
@@ -409,7 +409,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             r"""
             upweight losses
             """
-            loss, index = selector.confcorrect_compaction(confidence, targets == pred[0], epoch, loss, index, rank)
+            loss, indexes = selector.confcorrect_compaction(confidence, targets == pred[0], epoch, loss, indexes, rank)
          
         
         ################################################################################################################
