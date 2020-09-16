@@ -21,7 +21,7 @@ from utils.mnist import IndexedMNIST
 from utils.cifar import IndexedCifar10
 import random
 from train_config import *
-from SB import SBSelector
+
 from compaction import CompactionSelector
 
 #from scheduler import BackpropsMultiStepLR
@@ -263,7 +263,7 @@ def run(rank, state):
         train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, SB_WARMUP_EPOCH, PROB_FLOOR))           
     
     if SELECTIVE_BACKPROP:
-        selector = SBSelector(trainloader.batch_size, rank)
+        selector = SBS(trainloader.batch_size, rank)
     elif CORRECT_COMPACTION:
         selector = CompactionSelector(rank)
     else:
@@ -384,7 +384,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
             #print ("\n" + str(upweights.max().item()))
-            loss = loss * upweight
+            loss = loss * upweights
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)

@@ -11,15 +11,19 @@ default_device = 0
 ##########################################
 # SB config
 
+from SB import SBSelector
+
+SBS = SBSelector
+
 SELECTIVE_BACKPROP = True
-SB_BETA = 1
+SB_BETA = 3
 SB_HISTORY_SIZE = 1024
 SB_STALNESS = 0
 
-SB_WARMUP_EPOCH = 2
-PROB_FLOOR = 0.05
+SB_WARMUP_EPOCH = 0
+PROB_FLOOR = 0.005
 
-UPWEIGHT_LOSS = True
+UPWEIGHT_LOSS = False
 
 ################################
 # Compaction config
