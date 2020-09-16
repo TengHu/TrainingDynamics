@@ -21,7 +21,7 @@ from utils.mnist import IndexedMNIST
 from utils.cifar import IndexedCifar10
 import random
 from train_config import *
-from reweighter import SBSelector
+from SB import SBSelector
 from compaction import CompactionSelector
 
 #from scheduler import BackpropsMultiStepLR
@@ -372,7 +372,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
                 inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
 
             
-            
             if inputs.nelement() == 0:
                 bar.next()
                 continue
@@ -385,15 +384,15 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
             #print ("\n" + str(upweights.max().item()))
-            loss = loss * upweights
+            loss = loss * (1 / upweights)
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)
         top1and2 = F.softmax(outputs, dim=-1).topk(2)[0].detach()
         confidence = (top1and2[..., 0] - top1and2[..., 1])
         
-        if LOG_TO_DISK:
-            train_logger.blob['conf'] += [confidence.cpu().detach().numpy()]
+        '''if LOG_TO_DISK:
+            train_logger.blob['conf'] += [confidence.cpu().detach().numpy()]'''
         
          
         ######################
@@ -415,7 +414,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ################################################################################################################
         
         if LOG_TO_DISK:
-            train_logger.blob['correct_pred'] += [indexes[targets == pred[0]].cpu().detach().numpy()]
+            #train_logger.blob['correct_pred'] += [indexes[targets == pred[0]].cpu().detach().numpy()]
             train_logger.blob['train_loss'] += [loss.mean().item()]
             train_logger.blob['train_pred1'] += [prec1.item() / 100]
         
