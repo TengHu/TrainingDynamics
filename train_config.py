@@ -11,9 +11,6 @@ default_device = 0
 ##########################################
 # SB config
 
-from SB import SBSelector
-
-SBS = SBSelector
 
 SELECTIVE_BACKPROP = True
 SB_BETA = 3
@@ -21,9 +18,12 @@ SB_HISTORY_SIZE = 1024
 SB_STALNESS = 0
 
 SB_WARMUP_EPOCH = 0
-PROB_FLOOR = 0.005
+PROB_FLOOR = 0.05
 
-UPWEIGHT_LOSS = False
+UPWEIGHT_LOSS = True
+
+
+
 
 ################################
 # Compaction config
@@ -91,3 +91,7 @@ def sigmoid_grow(iteration, rate=0):
 
 if __name__ == '__main__':
     pass
+
+from SB import SBSelector
+
+SBS = SBSelector
