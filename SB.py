@@ -93,7 +93,7 @@ class SBSelector(object):
             self.candidate_targets = self.candidate_targets[self.size_to_backprops:]
             self.candidate_upweights = self.candidate_upweights[self.size_to_backprops:]
 
-            return new_inputs, new_targets, new_upweights, new_indexes
+            return new_inputs, new_targets, 1 / new_upweights, new_indexes
         else: 
             return torch.empty(0), torch.empty(0), torch.empty(0), torch.empty(0)
     

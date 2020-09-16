@@ -384,7 +384,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
             #print ("\n" + str(upweights.max().item()))
-            loss = loss * (1 / upweights)
+            loss = loss * upweight
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)
