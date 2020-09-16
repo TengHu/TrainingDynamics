@@ -28,11 +28,14 @@ class IndexedCifar10(Dataset):
         self.cifar10 = datasets.CIFAR10(
             root=root, download=download, train=train, transform=transform)
         
+        #if train:
+        #    self.random_labels = np.load('dataset_overrides/cifar/50pct_random_label.npy')
+        
     def __getitem__(self, index):
         data, target = self.cifar10[index]
         
-        #if train:
-        #    self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
+        if hasattr(self, 'random_labels'):
+            target = self.random_labels[index]
         return data, target, index
 
     def __len__(self):

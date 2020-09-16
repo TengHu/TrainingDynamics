@@ -47,7 +47,7 @@ def get_dataset(state):
     if state['dataset'] == 'cifar10':
         dataloader = IndexedCifar10
         num_classes = 10
-    if state['dataset'] == 'cifar100':
+    elif state['dataset'] == 'cifar100':
         dataloader = IndexedCifar100
         num_classes = 100
     elif state['dataset'] == 'mnist':
