@@ -25,8 +25,8 @@ except ModuleNotFoundError:
     import pickle
 
 
-dataset = IndexedCifar10
-dataset_name = 'cifar10'
+dataset = IndexedCifar100
+dataset_name = 'cifar100'
 
 transform_test = dataset.transform_test
 
@@ -34,12 +34,12 @@ classes = dataset.classes()
 MEAN = dataset.MEAN
 STD = dataset.STD
 
-trainset = dataset(transform_test, train=True, random_shuffle=0, mini=True)
+'''trainset = dataset(transform_test, train=True, random_shuffle=0, mini=True)
 trainset_25rand = dataset(transform_test, train=True, random_shuffle=25, mini=True)
 trainset_50rand = dataset(transform_test, train=True, random_shuffle=50, mini=True)
 trainset_100rand = dataset(transform_test, train=True, random_shuffle=100, mini=True)
 
-
+'''
 testset = dataset(transform_test, train=False)
 
 '''

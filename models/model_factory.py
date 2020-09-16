@@ -3,7 +3,7 @@ __all__ = ['create_model']
 
 def create_model(state, num_classes):
 
-    if state['dataset'] == 'cifar10':
+    if state['dataset'] in ('cifar10', 'cifar100'):
         import models.cifar as models
     elif state['dataset'] == 'mnist':
         import models.mnist as models

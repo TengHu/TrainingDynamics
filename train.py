@@ -19,6 +19,7 @@ import shutil
 import torch.distributed as dist
 from utils.mnist import IndexedMNIST
 from utils.cifar import IndexedCifar10
+from utils.cifar100 import IndexedCifar100
 import random
 from train_config import *
 
@@ -46,6 +47,9 @@ def get_dataset(state):
     if state['dataset'] == 'cifar10':
         dataloader = IndexedCifar10
         num_classes = 10
+    if state['dataset'] == 'cifar100':
+        dataloader = IndexedCifar100
+        num_classes = 100
     elif state['dataset'] == 'mnist':
         dataloader = IndexedMNIST
         num_classes = 10
