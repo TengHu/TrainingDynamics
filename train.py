@@ -448,7 +448,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
         
         num_backprops += loss.nelement()
-        noisy_examples += len(noisy_examples_in_75pct.intersection(indexes))
+        
+        noisy_examples += noisy_examples_in_75pct.intersection(indexes.cpu().detach().numpy())
         
         loss_mean.backward()
         optimizer.step()
