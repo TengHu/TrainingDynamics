@@ -192,6 +192,7 @@ def run(rank, state):
         batch_size=state['train_batch'],
         shuffle=True,
         pin_memory=True,
+        drop_last=True,
         num_workers=state['workers'])
     
     
