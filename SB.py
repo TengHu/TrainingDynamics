@@ -75,8 +75,8 @@ class SBSelector(object):
         self.stale_loss = collections.defaultdict()
         
     
-    def _update(self, inputs, targets, mask, upweights):
-        self.candidate_indexes = torch.cat((self.candidate_indexes, inputs[mask]), 0)
+    def _update(self, inputs, targets, mask, indexes, upweights):
+        self.candidate_indexes = torch.cat((self.candidate_indexes, indexes[mask]), 0)
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
         self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
@@ -98,10 +98,10 @@ class SBSelector(object):
             return torch.empty(0), torch.empty(0), torch.empty(0), torch.empty(0)
     
     def _update_from_stale(self, inputs, targets, indexes):
-        mask, probs = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
-        return self._update(inputs, targets, mask, 1 / probs)
+        mask, weights = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
+        return self._update(inputs, targets, mask, indexes, weights)
     
-    def _update_fresh(self, inputs, targets, losses, index):
+    def _update_fresh(self, inputs, targets, losses, indexes):
         mask, weights = self.mask_calculator.select(losses.detach().cpu().numpy())
 
         # save losses
@@ -109,7 +109,7 @@ class SBSelector(object):
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
         
-        return self._update(inputs, targets, mask, weights)
+        return self._update(inputs, targets, mask, indexes, weights)
             
     def _use_stale(self, epoch):
         return SB_STALNESS != 0 and epoch % SB_STALNESS != 0
@@ -119,10 +119,8 @@ class SBSelector(object):
             self.stale_loss.clear()
             
             
-            
-            
     def update_examples(self, model, criterion, inputs, targets, indexes, epoch):
-        return self.update_examples_with_grad_norm(model, criterion, inputs, targets, indexes, epoch)
+        return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
     
     
     def update_examples_with_loss(self, model, criterion, inputs, targets, indexes, epoch):
@@ -154,7 +152,6 @@ class SBSelector(object):
         handles = []
         handles.append(last_layer.register_forward_hook(_capture_activations))
         handles.append(last_layer.register_backward_hook(_capture_backprops))
-        
         
          
         # model.fc3.backprops_list

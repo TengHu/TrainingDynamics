@@ -351,6 +351,10 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
+    
+    # TODO: niel.hu
+    noisy_examples_in_75pct = set(np.load("dataset_overrides/mnist/noisy_examples_in_75pct.npy"))
+    
     for batch_idx, (inputs, targets, indexes) in enumerate(trainloader):
         optimizer.zero_grad()
         model.train()
@@ -366,6 +370,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
         #######################################
         
+       
         
         if SELECTIVE_BACKPROP:
             r"""
@@ -375,7 +380,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             if epoch >= SB_WARMUP_EPOCH:
                 inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
 
-            
             if inputs.nelement() == 0:
                 bar.next()
                 continue
@@ -419,6 +423,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         if LOG_TO_DISK:
             #train_logger.blob['correct_pred'] += [indexes[targets == pred[0]].cpu().detach().numpy()]
+            
             train_logger.blob['train_loss'] += [loss.mean().item()]
             train_logger.blob['train_pred1'] += [prec1.item() / 100]
         
@@ -435,6 +440,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         
         if LOG_TO_DISK:
+            
             train_logger.blob['backprops'] += [loss.nelement()]
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
             
