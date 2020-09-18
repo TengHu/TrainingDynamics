@@ -131,6 +131,8 @@ class SBSelector(object):
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             
+            loss = send_data_to_device(torch.rand(loss.shape), self.rank)
+            
             return self._update_fresh(inputs, targets, loss, indexes)
         
     def update_examples_with_grad_norm(self, model, criterion, inputs, targets, indexes, epoch):
