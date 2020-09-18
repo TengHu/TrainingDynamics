@@ -5,29 +5,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 
 ##### default device
-
 default_device = 0
-
-##########################################
-# SB config
-# use device, LR, grad or loss, result_dir name
-# run os.system 
-
-
-
-SELECTIVE_BACKPROP = False
-SB_BETA = 3
-SB_HISTORY_SIZE = 1024
-SB_STALNESS = 0
-
-SB_WARMUP_EPOCH = 0
-PROB_FLOOR = 0.05
-
-UPWEIGHT_LOSS = False
-
-# 0 = loss, 1 = grad, 2 = rand
-SELECT_MODE = 0
-
 
 
 ################################
@@ -97,6 +75,4 @@ def sigmoid_grow(iteration, rate=0):
 if __name__ == '__main__':
     pass
 
-from SB import SBSelector
 
-SBS = SBSelector

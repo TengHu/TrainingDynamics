@@ -1,6 +1,6 @@
 import pdb
 import torch
-from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, PROB_FLOOR, send_data_to_device, SELECT_MODE
+from train_config import send_data_to_device
 import math
 import collections
 import numpy as np
@@ -58,11 +58,10 @@ class BatchedRelativeProbabilityCalculator(object):
         select_probability = self._get_probability(losses)
         draw = np.random.uniform(0, 1, size=select_probability.shape)
         return draw < select_probability, select_probability
-        
-    
+       
     
 class SBSelector(object):
-    def __init__(self, size_to_backprops, rank):
+    def __init__(self, size_to_backprops, beta, history, floor, mode, staleness, rank):
         self.size_to_backprops = size_to_backprops
         
         self.candidate_indexes = send_data_to_device(torch.LongTensor([]), rank)
@@ -71,7 +70,10 @@ class SBSelector(object):
         self.candidate_upweights = send_data_to_device(torch.Tensor([]), rank)
         self.rank = rank
         
-        self.mask_calculator = BatchedRelativeProbabilityCalculator(SB_HISTORY_SIZE, SB_BETA, PROB_FLOOR)
+        self.mode = mode
+        self.staleness = staleness
+        
+        self.mask_calculator = BatchedRelativeProbabilityCalculator(history, beta, floor)
         self.stale_loss = collections.defaultdict()
         
     
@@ -105,14 +107,14 @@ class SBSelector(object):
         mask, weights = self.mask_calculator.select(losses.detach().cpu().numpy())
 
         # save losses
-        if SB_STALNESS > 0:
+        if self.staleness > 0:
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
         
         return self._update(inputs, targets, mask, indexes, weights)
             
     def _use_stale(self, epoch):
-        return SB_STALNESS != 0 and epoch % SB_STALNESS != 0
+        return self.staleness != 0 and epoch % self.staleness != 0
     
     def init_for_this_epoch(self, epoch):
         if not self._use_stale(epoch):
@@ -120,11 +122,11 @@ class SBSelector(object):
             
             
     def update_examples(self, model, criterion, inputs, targets, indexes, epoch):
-        if SELECT_MODE == 0:
+        if self.mode == 0:
             return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
-        elif SELECT_MODE == 1:
+        elif self.mode == 1:
             return self.update_examples_with_grad_norm(model, criterion, inputs, targets, indexes, epoch)
-        elif SELECT_MODE == 2:
+        elif self.mode == 2:
             return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
         
         
@@ -139,7 +141,7 @@ class SBSelector(object):
             loss = criterion(outputs, targets)
             
             
-            if SELECT_MODE == 2:
+            if self.mode == 2:
                 loss = send_data_to_device(torch.rand(loss.shape), self.rank)
             
             return self._update_fresh(inputs, targets, loss, indexes)

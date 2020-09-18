@@ -146,6 +146,17 @@ def arguments():
     parser.add_argument('--depth', type=int, default=8, help='Model depth.')
     # Miscs
     parser.add_argument('--manualSeed', type=int, help='manual seed')
+    
+    
+    
+    parser.add_argument('--selective-backprop', type=int, default=0, help='enable SB')
+    parser.add_argument('--beta', type=int, default=1, help='beta for SB')
+    parser.add_argument('--history', type=int, default=1024, help='history size for SB')
+    parser.add_argument('--staleness', type=int, default=0, help='staleness for SB')
+    parser.add_argument('--warmup', type=int, default=0, help='warmup epoch for SB')
+    parser.add_argument('--floor', type=float, default=0, help='prob floor for SB')
+    parser.add_argument('--upweight', type=int, default=0, help='upweight loss for SB')
+    parser.add_argument('--mode', type=int, default=0, help='selection mode for SB')
 
     save_dir = './result-' + uuid.uuid4().hex
     parser.add_argument('--save_dir', default=save_dir + '/', type=str)
@@ -266,11 +277,11 @@ def run(rank, state):
     if CORRECT_COMPACTION:
         train_logger.append_blob("correct compaction: {}, sample prob: {}, epoch: {}, stale: {}, confidence {}".format(CORRECT_COMPACTION, COMPACTION_SAMPLE_PROB, WARMUP_EPOCH, COMPACTION_STALNESS, CONFIDENT_CORRECT_THRESH))
 
-    if SELECTIVE_BACKPROP:
-        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, SB_WARMUP_EPOCH, PROB_FLOOR))           
+    if state['selective_backprop']:
+        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor']))           
     
-    if SELECTIVE_BACKPROP:
-        selector = SBSelector(trainloader.batch_size, rank)
+    if state['selective_backprop']:
+        selector = SBSelector(trainloader.batch_size, state['beta'], state['history'], state['floor'], state['mode'], state['staleness'], rank)
     elif CORRECT_COMPACTION:
         selector = CompactionSelector(rank)
     else:
@@ -303,7 +314,7 @@ def run(rank, state):
         
         # BEFORE_RUN: accuracy_log
         accuracy_log = []
-        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector)
+        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector, state)
         test_loss, test_acc = test(rank, testloader, model, criterion, epoch)
 
         # append logger file
@@ -334,7 +345,7 @@ def run(rank, state):
     print('Best acc:')
     print(best_acc)
 
-def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector):
+def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector, state):
     global global_step
     
     model.train()
@@ -376,12 +387,12 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
        
         
-        if SELECTIVE_BACKPROP:
+        if state['selective_backprop']:
             r"""
             Select inputs and targets
             """
             
-            if epoch >= SB_WARMUP_EPOCH:
+            if epoch >= state['warmup']:
                 inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
 
             if inputs.nelement() == 0:
@@ -394,7 +405,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         loss = criterion(outputs, targets)
         
         
-        if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
+        if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
             #print ("\n" + str(upweights.max().item()))
             loss = loss * upweights
         
