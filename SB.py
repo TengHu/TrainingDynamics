@@ -1,6 +1,6 @@
 import pdb
 import torch
-from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, PROB_FLOOR, send_data_to_device
+from train_config import SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, PROB_FLOOR, send_data_to_device, SELECT_MODE
 import math
 import collections
 import numpy as np
@@ -120,7 +120,14 @@ class SBSelector(object):
             
             
     def update_examples(self, model, criterion, inputs, targets, indexes, epoch):
-        return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
+        if SELECT_MODE == 0:
+            return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
+        elif SELECT_MODE == 1:
+            return self.update_examples_with_grad_norm(model, criterion, inputs, targets, indexes, epoch)
+        elif SELECT_MODE == 2:
+            return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
+        
+        
     
     
     def update_examples_with_loss(self, model, criterion, inputs, targets, indexes, epoch):
@@ -131,7 +138,9 @@ class SBSelector(object):
             outputs = model(inputs)
             loss = criterion(outputs, targets)
             
-            loss = send_data_to_device(torch.rand(loss.shape), self.rank)
+            
+            if SELECT_MODE == 2:
+                loss = send_data_to_device(torch.rand(loss.shape), self.rank)
             
             return self._update_fresh(inputs, targets, loss, indexes)
         

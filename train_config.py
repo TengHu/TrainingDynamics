@@ -10,6 +10,9 @@ default_device = 0
 
 ##########################################
 # SB config
+# use device, LR, grad or loss, result_dir name
+# run os.system 
+
 
 
 SELECTIVE_BACKPROP = False
@@ -22,6 +25,8 @@ PROB_FLOOR = 0.05
 
 UPWEIGHT_LOSS = False
 
+# 0 = loss, 1 = grad, 2 = rand
+SELECT_MODE = 0
 
 
 
