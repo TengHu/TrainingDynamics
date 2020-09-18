@@ -65,7 +65,7 @@ class SBSelector(object):
     def __init__(self, size_to_backprops, rank):
         self.size_to_backprops = size_to_backprops
         
-        self.candidate_indexes = send_data_to_device(torch.Tensor([]), rank)
+        self.candidate_indexes = send_data_to_device(torch.LongTensor([]), rank)
         self.candidate_inputs = send_data_to_device(torch.Tensor([]), rank)
         self.candidate_targets = send_data_to_device(torch.LongTensor([]), rank)
         self.candidate_upweights = send_data_to_device(torch.Tensor([]), rank)
@@ -76,7 +76,7 @@ class SBSelector(object):
         
     
     def _update(self, inputs, targets, mask, indexes, upweights):
-        self.candidate_indexes = torch.cat((self.candidate_indexes, indexes[mask]), 0)
+        self.candidate_indexes = torch.cat((self.candidate_indexes, send_data_to_device(torch.LongTensor(indexes[mask]), self.rank)), 0)
         self.candidate_inputs = torch.cat((self.candidate_inputs, inputs[mask]), 0)
         self.candidate_targets = torch.cat((self.candidate_targets, targets[mask]), 0)
         self.candidate_upweights = torch.cat((self.candidate_upweights, send_data_to_device(torch.Tensor(upweights[mask]), self.rank)), 0)
