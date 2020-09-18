@@ -22,6 +22,8 @@ from utils.cifar import IndexedCifar10
 from utils.cifar100 import IndexedCifar100
 import random
 from train_config import *
+from SB import SBSelector
+
 
 from compaction import CompactionSelector
 
@@ -268,7 +270,7 @@ def run(rank, state):
         train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, SB_WARMUP_EPOCH, PROB_FLOOR))           
     
     if SELECTIVE_BACKPROP:
-        selector = SBS(trainloader.batch_size, rank)
+        selector = SBSelector(trainloader.batch_size, rank)
     elif CORRECT_COMPACTION:
         selector = CompactionSelector(rank)
     else:
