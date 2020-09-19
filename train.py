@@ -140,14 +140,20 @@ def arguments():
         type=str,
         metavar='PATH',
         help='path to latest checkpoint (default: none)')
+    
+    
+    parser.add_argument(
+        '--noise-path',
+        default='',
+        type=str,
+        metavar='PATH',
+        help='path to latest checkpoint (default: none)')
 
     # Architecture
     parser.add_argument('--arch', '-a', metavar='ARCH', default='fcnet')
     parser.add_argument('--depth', type=int, default=8, help='Model depth.')
     # Miscs
     parser.add_argument('--manualSeed', type=int, help='manual seed')
-    
-    
     
     parser.add_argument('--selective-backprop', type=int, default=0, help='enable SB')
     parser.add_argument('--beta', type=int, default=1, help='beta for SB')
@@ -361,14 +367,11 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     
     
     num_backprops = 0
-    noisy_examples = 0
     
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
     
-    # TODO: niel.hu
-    noisy_examples_in_75pct = set(np.load("dataset_overrides/mnist/noisy_examples_in_75pct.npy"))
     
     for batch_idx, (inputs, targets, indexes) in enumerate(trainloader):
         optimizer.zero_grad()
@@ -462,8 +465,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         num_backprops += loss.nelement()
         
-        noisy_examples += len(noisy_examples_in_75pct.intersection(indexes.cpu().detach().numpy()))
-        
         loss_mean.backward()
         optimizer.step()
         
@@ -499,7 +500,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     if LOG_TO_DISK:
         train_logger.blob['epoch_backprops'] += [num_backprops]  
         train_logger.blob['epoch_pred1'] += [top1.avg / 100]
-        train_logger.blob['epoch_noisy_examples'] += [noisy_examples]
         
     del inputs, targets, outputs, loss
     
