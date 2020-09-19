@@ -368,6 +368,13 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     
     num_backprops = 0
     
+    correct_pred_buf = [] 
+    examples_buf = []
+    train_loss = []
+    train_pred1 = []
+    
+   
+    
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
@@ -387,8 +394,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
         #######################################
-        
-       
         
         if state['selective_backprop']:
             r"""
@@ -417,9 +422,6 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         top1and2 = F.softmax(outputs, dim=-1).topk(2)[0].detach()
         confidence = (top1and2[..., 0] - top1and2[..., 1])
         
-        '''if LOG_TO_DISK:
-            train_logger.blob['conf'] += [confidence.cpu().detach().numpy()]'''
-        
          
         ######################
         
@@ -438,14 +440,11 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
          
         
         ################################################################################################################
-        
-        
-        if LOG_TO_DISK:
-            train_logger.blob['correct_pred'] += [indexes[targets == pred[0]].cpu().detach().numpy()]
-            train_logger.blob['examples'] += [indexes.cpu().detach().numpy()]
-            train_logger.blob['train_loss'] += [loss.mean().item()]
-            train_logger.blob['train_pred1'] += [prec1.item() / 100]
-        
+        correct_pred_buf  += [indexes[targets == pred[0]].cpu().detach().numpy()]
+        examples_buf += [indexes.cpu().detach().numpy()]
+        train_loss += [loss.mean().item()]
+        train_pred1 += [prec1.item() / 100]
+            
         #######################################
         
         loss_mean = loss.mean()
@@ -459,9 +458,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         
         if LOG_TO_DISK:
-            
             train_logger.blob['backprops'] += [loss.nelement()]
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
+            
         
         num_backprops += loss.nelement()
         
@@ -500,6 +499,11 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     if LOG_TO_DISK:
         train_logger.blob['epoch_backprops'] += [num_backprops]  
         train_logger.blob['epoch_pred1'] += [top1.avg / 100]
+        
+        train_logger.blob['correct_pred'] += [correct_pred_buf]
+        train_logger.blob['examples'] += [examples_buf]
+        train_logger.blob['train_loss'] += [train_loss]
+        train_logger.blob['train_pred1'] += [train_pred1]
         
     del inputs, targets, outputs, loss
     
