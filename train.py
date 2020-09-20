@@ -370,6 +370,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     
     correct_pred_buf = [] 
     examples_buf = []
+    multipliers = []
     train_loss = []
     train_pred1 = []
     
@@ -416,6 +417,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
             #print ("\n" + str(upweights.max().item()))
             loss = loss * upweights
+            multipliers += [upweights.cpu().detach().numpy()]
+          
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)
@@ -503,6 +506,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         train_logger.blob['correct_pred'] += [correct_pred_buf]
         train_logger.blob['examples'] += [examples_buf]
         train_logger.blob['train_loss'] += [train_loss]
+        train_logger.blob['multipliers'] += [multipliers]
         train_logger.blob['train_pred1'] += [train_pred1]
         
     del inputs, targets, outputs, loss
