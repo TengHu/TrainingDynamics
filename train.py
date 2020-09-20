@@ -441,7 +441,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         ################################################################################################################
         correct_pred_buf  += [indexes[targets == pred[0]].cpu().detach().numpy()]
-        examples_buf += [indexes.cpu().detach().numpy()]
+        examples_buf += [list(zip(indexes.cpu().detach().numpy(),loss.cpu().detach().numpy()))]
         train_loss += [loss.mean().item()]
         train_pred1 += [prec1.item() / 100]
             
