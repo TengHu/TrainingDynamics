@@ -7,6 +7,7 @@ import numpy as np
 ##### default device
 default_device = 0
 
+# noisy type, level in dataset
 
 VALID_SIZE = 0
 
