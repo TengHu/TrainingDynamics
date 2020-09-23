@@ -8,6 +8,8 @@ import numpy as np
 default_device = 0
 
 
+VALID_SIZE = 5000
+
 ################################
 # Compaction config
 
