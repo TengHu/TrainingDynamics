@@ -19,7 +19,8 @@ class BoundedHistogram(object):
     def append(self, value):
         self.history.append(value)
 
-    def get_count(self, it, score):
+    # CDF
+    def get_cdf_percentile(self, it, score):
         count = 0
         for i in it:
             if i < score:
@@ -27,7 +28,7 @@ class BoundedHistogram(object):
         return count
 
     def percentile_of_score(self, score):
-        num_lower_scores = self.get_count(self.history, score)
+        num_lower_scores = self.get_cdf_percentile(self.history, score)
         return num_lower_scores * 100. / len(self.history)
     
     
