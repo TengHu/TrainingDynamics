@@ -146,6 +146,9 @@ def arguments():
         type=str,
         metavar='PATH',
         help='path to latest checkpoint (default: none)')
+    
+    
+    parser.add_argument('--rank', type=int, default=0, help='Rank.')
 
     # Architecture
     parser.add_argument('--arch', '-a', metavar='ARCH', default='fcnet')
@@ -173,7 +176,7 @@ def _main(rank=0):
     state = {k: v for k, v in args._get_kwargs()}
     set_random_seed(state)
     print(state)
-    run(rank, state)
+    run(state['rank'], state)
     
     
 def main(rank=0):

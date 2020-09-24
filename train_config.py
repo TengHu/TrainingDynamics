@@ -5,7 +5,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 import numpy as np
 
 ##### default device
-default_device = 0
+#default_device = 0
 
 # noisy type, level in dataset
 # shape of distribution in BatchedRelativeProbabilityCalculator._calculate_probability
@@ -30,7 +30,8 @@ WORLD_SIZE = 2
 
 # caused the imbalance memory on both gpus
 #torch.cuda.set_device(default_device)
-device = torch.device("cuda:{}".format(default_device) if torch.cuda.is_available() else "cpu")
+
+#device = torch.device("cuda:{}".format(default_device) if torch.cuda.is_available() else "cpu")
 
 
 def _setup(rank, world_size):
@@ -47,13 +48,13 @@ def maybe_init_process_group(rank, func):
 def send_data_to_device(data, rank):
     if not torch.cuda.is_available():
         return data
-    return data.cuda(device)
+    return data.cuda(rank)
 
 def send_model_to_device(model, rank):
     if not torch.cuda.is_available():
         return model
-    #return model.cuda(device)
-    return torch.nn.DataParallel(model).cuda(device)
+    return model.cuda(rank)
+    #return torch.nn.DataParallel(model).cuda(device)
 
 def exp_decay(num, iteration, decay=0):
     return num * np.exp(decay * iteration)
