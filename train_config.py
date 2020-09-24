@@ -11,7 +11,8 @@ import numpy as np
 # shape of distribution in BatchedRelativeProbabilityCalculator._calculate_probability
 
 
-VALID_SIZE = 0
+VALID_SIZE = 5000
+torch.cuda.set_device(0)
 
 ##########################################
 
@@ -29,7 +30,7 @@ LOG_TO_DISK = True
 WORLD_SIZE = 2 
 
 # caused the imbalance memory on both gpus
-#torch.cuda.set_device(default_device)
+
 
 #device = torch.device("cuda:{}".format(default_device) if torch.cuda.is_available() else "cpu")
 
