@@ -27,10 +27,9 @@ class IndexedMNIST(Dataset):
             root=root, download=download, train=train, transform=transform)
         
         if train:
-            pass
             #self.random_labels = np.load('dataset_overrides/mnist/75pct_random_label.npy')
-            #self.examples_to_add_noise = set(np.load('dataset_overrides/mnist/25pct_example_to_add_noise.npy'))
-            #self.noise = torch.randn(self.mnist.data.shape)
+            self.examples_to_add_noise = set(np.load('dataset_overrides/mnist/50pct_example_to_add_noise.npy'))
+            self.noise = torch.randn(self.mnist.data.shape)
                 
         self.train = train
 

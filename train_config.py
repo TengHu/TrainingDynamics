@@ -8,19 +8,10 @@ import numpy as np
 default_device = 0
 
 # noisy type, level in dataset
+# shape of distribution in BatchedRelativeProbabilityCalculator._calculate_probability
+
 
 VALID_SIZE = 0
-
-################################
-# Compaction config
-
-CORRECT_COMPACTION = False
-CONFIDENT_CORRECT_THRESH = .7
-
-COMPACTION_STALNESS = 0
-COMPACTION_SAMPLE_PROB = .1
-WARMUP_EPOCH = 1
-
 
 ##########################################
 
@@ -44,8 +35,8 @@ device = torch.device("cuda:{}".format(default_device) if torch.cuda.is_availabl
 
 def _setup(rank, world_size):
     os.environ['MASTER_ADDR'] = 'localhost'
-    os.environ['MASTER_PORT'] = '8889'
-    torch.distributed.init_process_group(backend='nccl', rank=rank, world_size=world_size)
+    os.environ['MASTER_PORT'] = '12355'
+    torch.distributed.init_process_group(backend='gloo', rank=rank, world_size=world_size)
 
 def _cleanup():
     torch.distributed.destroy_process_group()
@@ -61,8 +52,8 @@ def send_data_to_device(data, rank):
 def send_model_to_device(model, rank):
     if not torch.cuda.is_available():
         return model
-    return model.cuda(device)
-    #return torch.nn.DataParallel(model).cuda(device)
+    #return model.cuda(device)
+    return torch.nn.DataParallel(model).cuda(device)
 
 def exp_decay(num, iteration, decay=0):
     return num * np.exp(decay * iteration)
