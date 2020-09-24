@@ -23,11 +23,11 @@ def train_worker(rank, seed):
     
     
     # Cifar10
-    #os.system("python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 3000000 6000000 8000000 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 50  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0 --rank {}".format(save_dir, seed, rank))
+    os.system("python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 400  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0 --rank {}".format(save_dir, seed, rank))
     
 
     # MNIST
-    os.system("python train.py --dataset mnist --arch convnet --lr 0.1 --momentum 0.9 --train-batch 512  --test-batch 512 --save_dir ./{} --workers 8 --epochs 50 --schedule 2400000 3600000 --gamma 0.2 --manualSeed {} --selective-backprop 1 --beta 3 --upweight 1 --floor 0.05 --mode 0 --rank {}".format(save_dir, seed, rank))
+    #os.system("python train.py --dataset mnist --arch convnet --lr 0.1 --momentum 0.9 --train-batch 512  --test-batch 512 --save_dir ./{} --workers 8 --epochs 50 --schedule 2400000 3600000 --gamma 0.2 --manualSeed {} --selective-backprop 1 --beta 3 --upweight 1 --floor 0.05 --mode 0 --rank {}".format(save_dir, seed, rank))
 
 
 if __name__ == '__main__':

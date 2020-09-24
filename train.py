@@ -308,7 +308,6 @@ def run(rank, state):
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, state['epochs'],
                                              state['lr']))
         
-        
         # BEFORE_RUN: accuracy_log
         accuracy_log = []
         train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector, state)
@@ -324,6 +323,7 @@ def run(rank, state):
         
         # save model
         best_acc = max(test_acc, best_acc)
+        scheduler.step()
 
     train_logger.close()
     valid_logger.close()
@@ -464,8 +464,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         )
         bar.next()
         
-        for _ in range(loss.nelement()):
-            scheduler.step()
+        # scheduler on backprops
+        '''for _ in range(loss.nelement()):
+            scheduler.step()'''
         
         
     ### SelectiveBP
