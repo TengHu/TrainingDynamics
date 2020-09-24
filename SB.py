@@ -53,10 +53,14 @@ class BatchedRelativeProbabilityCalculator(object):
     def _get_probability(self, losses):
         self._update_history(losses)
         probs = np.array([max(self.sampling_min, self._calculate_probability(loss)) for loss in losses])
+        
         return probs
 
     def select(self, losses):
         select_probability = self._get_probability(losses)
+        
+        
+        # disentangle the shape and prob
         draw = np.random.uniform(0, 1, size=select_probability.shape)
         return draw < select_probability, select_probability
        

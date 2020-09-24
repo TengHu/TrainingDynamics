@@ -25,8 +25,6 @@ from train_config import *
 from SB import SBSelector
 
 
-from compaction import CompactionSelector
-
 #from scheduler import BackpropsMultiStepLR
 try:
     import cPickle as pickle
