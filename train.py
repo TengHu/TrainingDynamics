@@ -213,7 +213,7 @@ def run(rank, state):
         root='./data', train=False, download=False, transform=transform_test)
     
     # train/valid/test split
-    trainset, validset = torch.utils.data.random_split(trainset, [len(trainset) - VALID_SIZE, VALID_SIZE])
+    testset, validset = torch.utils.data.random_split(testset, [len(testset) - VALID_SIZE, VALID_SIZE])
     
     trainloader = data.DataLoader(
         trainset,
@@ -238,11 +238,6 @@ def run(rank, state):
         shuffle=True,
         pin_memory=True,
         num_workers=state['workers'])
-    
-    
-    
-
-    
     
 
     # Model
