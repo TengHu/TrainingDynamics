@@ -23,7 +23,7 @@ def train_worker(rank, seed):
     
     
     # Cifar10
-    os.system("python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 400  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0 --rank {}".format(save_dir, seed, rank))
+    os.system("python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0 --rank {}".format(save_dir, seed, rank))
     
 
     # MNIST
