@@ -37,7 +37,7 @@ class IndexedCifar100(Dataset):
     def __getitem__(self, index):
         data, target = self.cifar100[index]
         
-         if hasattr(self, 'random_labels'):
+        if hasattr(self, 'random_labels'):
             target = self.random_labels[index]
             
         if hasattr(self, 'examples_to_add_noise'):
