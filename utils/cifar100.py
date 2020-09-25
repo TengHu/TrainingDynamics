@@ -28,11 +28,22 @@ class IndexedCifar100(Dataset):
         self.cifar100 = datasets.CIFAR100(
             root=root, download=download, train=train, transform=transform)
         
+        if train:
+            pass
+            #self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
+            #self.examples_to_add_noise = set(np.load('dataset_overrides/cifar10/25pct_example_to_add_noise.npy'))
+            #self.noise = torch.randn(self.cifar10.data.shape)
+        
     def __getitem__(self, index):
         data, target = self.cifar100[index]
         
-        #if train:
-        #    self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
+         if hasattr(self, 'random_labels'):
+            target = self.random_labels[index]
+            
+        if hasattr(self, 'examples_to_add_noise'):
+            if index in self.examples_to_add_noise:
+                data = (data + self.noise[index].unsqueeze(0))
+                
         return data, target, index
 
     def __len__(self):
