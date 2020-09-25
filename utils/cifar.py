@@ -42,7 +42,7 @@ class IndexedCifar10(Dataset):
             
         if hasattr(self, 'examples_to_add_noise'):
             if index in self.examples_to_add_noise:
-                data = (data + self.noise[index].unsqueeze(0))    
+                data = (data + self.noise[index].transpose(0,2))    
         
         return data, target, index
 
