@@ -11,8 +11,8 @@ import numpy as np
 # shape of distribution in BatchedRelativeProbabilityCalculator._calculate_probability
 
 
-VALID_SIZE = 5000
-torch.cuda.set_device(0)
+VALID_SIZE = 0
+#torch.cuda.set_device(0)
 
 ##########################################
 

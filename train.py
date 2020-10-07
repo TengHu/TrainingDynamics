@@ -388,11 +388,15 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         loss = criterion(outputs, targets)
         
         
+       
+        
         if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
             #print ("\n" + str(upweights.max().item()))
             loss = loss * upweights
+            #multipliers += [upweights.cpu().detach().numpy()]
+        
+        if state['selective_backprop']:
             multipliers += [upweights.cpu().detach().numpy()]
-          
         
         #####################################################################################################################
         # TODO:niel.hu (MERGE)

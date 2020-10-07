@@ -143,6 +143,9 @@ class SBSelector(object):
         else:
             # Selection pass
             outputs = model(inputs)
+            
+            new_targets = outputs.topk(k=1, dim=-1)[1][:,-1]
+            
             loss = criterion(outputs, targets)
             
             

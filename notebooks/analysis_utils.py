@@ -25,8 +25,8 @@ except ModuleNotFoundError:
     import pickle
 
 
-dataset = IndexedCifar100
-dataset_name = 'cifar100'
+dataset = IndexedCifar10
+dataset_name = 'cifar10'
 
 transform_test = dataset.transform_test
 
