@@ -7,6 +7,7 @@ import random
 import uuid
 import torch.multiprocessing as mp
 import torch
+import numpy as np
 
 seeds = [535876, 161770, 291436, 260083, 490074]
 
@@ -33,22 +34,17 @@ def train_worker(rank, seed, lr):
 if __name__ == '__main__':
     start = time.time()
     
-    
-    
-    
     try:
          mp.set_start_method('spawn', force=True)
     except RuntimeError:
         pass
     
-    #for seed in seeds:
-    #    print ('./result-' + str(seed))
     
     pool = mp.Pool(processes=5)
     
     
-    for _ in range(5):
-        lr = 10 ** np.random.uniform(-6, 0)
+    for _ in range(3):
+        lr = 10 ** round(np.random.uniform(-5, 0))
 
         for i, seed in enumerate(seeds):
             pool.apply_async(train_worker, args=(i, seed, lr))
