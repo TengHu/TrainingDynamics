@@ -47,11 +47,11 @@ if __name__ == '__main__':
     pool = mp.Pool(processes=5)
     
     
-    for 
-    lr = 10 ** np.random.uniform(-6, 0)
-    
-    for i, seed in enumerate(seeds):
-        pool.apply_async(train_worker, args=(i, seed, lr))
+    for _ in range(5):
+        lr = 10 ** np.random.uniform(-6, 0)
+
+        for i, seed in enumerate(seeds):
+            pool.apply_async(train_worker, args=(i, seed, lr))
     
     pool.close()
     pool.join()
