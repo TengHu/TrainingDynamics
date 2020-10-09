@@ -13,9 +13,9 @@ seeds = [535876, 161770, 291436, 260083, 490074]
 
 
 
-def train_worker(rank, seed):
+def train_worker(rank, seed, lr):
     torch.cuda.empty_cache()
-    save_dir = './result-' + str(seed)
+    save_dir = './result-' + str(seed) + "-lr-" + str(lr)
     
 
     print('#' * 100, '\n')
@@ -23,7 +23,7 @@ def train_worker(rank, seed):
     
     
     # Cifar10
-    os.system("python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.05 --rank {}".format(save_dir, seed, rank))
+    os.system("python train.py --dataset cifar10 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.05 --rank {}".format(lr, save_dir, seed, rank))
     
 
     # MNIST
@@ -32,6 +32,9 @@ def train_worker(rank, seed):
 
 if __name__ == '__main__':
     start = time.time()
+    
+    
+    
     
     try:
          mp.set_start_method('spawn', force=True)
@@ -42,8 +45,13 @@ if __name__ == '__main__':
     #    print ('./result-' + str(seed))
     
     pool = mp.Pool(processes=5)
+    
+    
+    for 
+    lr = 10 ** np.random.uniform(-6, 0)
+    
     for i, seed in enumerate(seeds):
-        pool.apply_async(train_worker, args=(i, seed,))
+        pool.apply_async(train_worker, args=(i, seed, lr))
     
     pool.close()
     pool.join()
