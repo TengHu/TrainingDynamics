@@ -43,8 +43,16 @@ if __name__ == '__main__':
     pool = mp.Pool(processes=5)
     
     
+    lrs = set()
+    
     for _ in range(3):
-        lr = 10 ** round(np.random.uniform(-5, 0))
+        lr = 10 ** round(np.random.uniform(-6, 0))
+        
+        if lr in lrs:
+            # do it again
+            lr = 10 ** round(np.random.uniform(-6, 0))
+            
+        lrs.add(lr)
 
         for i, seed in enumerate(seeds):
             pool.apply_async(train_worker, args=(i, seed, lr))
