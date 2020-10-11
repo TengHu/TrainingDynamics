@@ -373,14 +373,29 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         data_time.update(time.time() - end)
         
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
-        #######################################
-        
-        loss_ = criterion(model(inputs), targets)
+        ############################################################################################################################################################
+       
+        outputs_ = model(inputs)
+        loss_ = criterion(outputs_, targets)
         _, percentiles = histogram.select(loss_.detach().cpu().numpy())
         
-        import pdb
-        pdb.set_trace()
         
+        topk = (1, 5)
+        pred, res = compute_pred(targets, outputs_, topk)
+        prec1, prec5 = res
+        
+        corrects_ = (targets == pred[0]).detach().cpu().numpy()
+        buf = list(zip(indexes.cpu().detach().numpy(),
+                                  loss_.cpu().detach().numpy(),
+                                  percentiles,
+                                  corrects_))
+        
+        if LOG_TO_DISK:
+            train_logger.blob['eval'] += [buf]
+        
+        
+        #####################################################################################################################
+       
         if state['selective_backprop']:
             r"""
             Select inputs and targets
@@ -483,17 +498,17 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             scheduler.step()'''
         
         
-    ### SelectiveBP
+    ### SelectiveBP epoch
     if LOG_TO_DISK:
         train_logger.blob['epoch_backprops'] += [num_backprops]  
         train_logger.blob['epoch_pred1'] += [top1.avg / 100]
+        train_logger.blob['train_pred1'] += [train_pred1]
+        train_logger.blob['train_loss'] += [train_loss]
         
         train_logger.blob['correct_pred'] += [correct_pred_buf]
         train_logger.blob['examples'] += [examples_buf]
-        train_logger.blob['train_loss'] += [train_loss]
         train_logger.blob['multipliers'] += [multipliers]
         train_logger.blob['loss_hist'] += [loss_hist]
-        train_logger.blob['train_pred1'] += [train_pred1]
         
     del inputs, targets, outputs, loss
     
