@@ -22,7 +22,7 @@ from utils.cifar import IndexedCifar10
 from utils.cifar100 import IndexedCifar100
 import random
 from train_config import *
-from SB import SBSelector
+from SB import SBSelector,BatchedRelativeProbabilityCalculator
 
 
 #from scheduler import BackpropsMultiStepLR
@@ -348,8 +348,12 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     examples_buf = []
     multipliers = []
     loss_hist = []
+    percentiles = []
     train_loss = []
     train_pred1 = []
+    
+    
+    histogram = BatchedRelativeProbabilityCalculator(1024, 1, 0)
     
     if selector is not None:
         selector.init_for_this_epoch(epoch)
@@ -371,6 +375,12 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
         #######################################
         
+        loss_ = criterion(model(inputs), targets)
+        _, percentiles = histogram.select(loss_.detach().cpu().numpy())
+        
+        import pdb
+        pdb.set_trace()
+        
         if state['selective_backprop']:
             r"""
             Select inputs and targets
@@ -388,6 +398,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ## compute output
         outputs = model(inputs)
         loss = criterion(outputs, targets)
+        
+        
         
         
         
@@ -432,6 +444,9 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         if LOG_TO_DISK:
             train_logger.blob['backprops'] += [loss.nelement()]
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
+            train_logger.blob['percentiles'] += [list(zip(indexes.cpu().detach().numpy(),percentiles))]
+            
+            
             
         
         num_backprops += loss.nelement()
