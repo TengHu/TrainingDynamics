@@ -24,7 +24,7 @@ def train_worker(rank, seed, lr):
     
     
     # Cifar10
-    os.system("python train.py --dataset cifar10 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.05 --rank {}".format(lr, save_dir, seed, rank))
+    os.system("python train.py --dataset cifar100 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.05 --rank {}".format(lr, save_dir, seed, rank))
     
 
     # MNIST
@@ -45,8 +45,8 @@ if __name__ == '__main__':
     
     lrs = set()
     
-    for _ in range(3):
-        lr = 10 ** round(np.random.uniform(-6, 0))
+    for _ in range(1):
+        lr = 0.1 #10 ** round(np.random.uniform(-6, 0))
         
         if lr in lrs:
             # do it again
