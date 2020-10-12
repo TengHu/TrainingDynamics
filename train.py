@@ -36,7 +36,7 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
 
 
-def save_checkpoint(state, is_best, checkpoint, filename='finetuned.pth.tar'):
+def save_checkpoint(state, is_best, checkpoint, filename='recent.pth.tar'):
     if LOG_TO_DISK:
         filepath = os.path.join(checkpoint, filename)
         torch.save(state, filepath)
@@ -165,7 +165,7 @@ def arguments():
     parser.add_argument('--upweight', type=int, default=0, help='upweight loss for SB')
     parser.add_argument('--mode', type=int, default=0, help='selection mode for SB')
     
-    parser.add_argument('--saveModel', type=int, default=0, help='save the modeel')
+    parser.add_argument('--saveModel', type=int, default=1, help='save the modeel')
 
     save_dir = './result-' + uuid.uuid4().hex
     parser.add_argument('--save_dir', default=save_dir + '/', type=str)
@@ -334,6 +334,7 @@ def run(rank, state):
         is_best = test_acc > best_acc
         
         best_acc = max(test_acc, best_acc)
+        
         if state['saveModel']:
             save_checkpoint(
                 {
