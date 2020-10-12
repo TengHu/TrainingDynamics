@@ -23,7 +23,7 @@ python train.py --dataset cifar10 --arch wrn --lr 0.1 --momentum 0.9 --train-bat
 
 
 # MNIST
-python train.py --dataset mnist --arch convnet --lr 0.1 --momentum 0.9 --train-batch 512  --test-batch 512 --save_dir ./results_75noise --workers 8 --epochs 40 --schedule 2400000 3600000 --gamma 0.2 --manualSeed 535876 --selective-backprop 0 --beta 1 --upweight 0 --floor 0 --mode 0
+python train.py --dataset mnist --arch convnet --lr 0.1 --momentum 0.9 --train-batch 512  --test-batch 512 --save_dir ./results_temp --workers 8 --epochs 6 --schedule 2400000 3600000 --gamma 0.2 --manualSeed 535876 --selective-backprop 0 --beta 1 --upweight 0 --floor 0 --mode 0 --saveModel 1
 
 
 
