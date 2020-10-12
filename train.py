@@ -164,6 +164,8 @@ def arguments():
     parser.add_argument('--floor', type=float, default=0, help='prob floor for SB')
     parser.add_argument('--upweight', type=int, default=0, help='upweight loss for SB')
     parser.add_argument('--mode', type=int, default=0, help='selection mode for SB')
+    
+    parser.add_argument('--saveModel', type=int, default=0, help='save the modeel')
 
     save_dir = './result-' + uuid.uuid4().hex
     parser.add_argument('--save_dir', default=save_dir + '/', type=str)
@@ -272,6 +274,18 @@ def run(rank, state):
         
     title = state['arch']
     
+    
+    if state['resume']:
+        print('==> Resuming from checkpoint..')
+        assert os.path.isfile(
+            state['resume']), 'Error: no checkpoint directory found!'
+        checkpoint = torch.load(state['resume'])
+        best_acc = checkpoint['best_acc']
+        start_epoch = checkpoint['epoch']
+        model.load_state_dict(checkpoint['state_dict'])
+        optimizer.load_state_dict(checkpoint['optimizer'])
+    
+    
     train_logger = Logger(os.path.join(state['save_dir'], 'train-log.txt'))
     
     train_logger.append_blob("model: {}, num_params: {}, lr: {}, weight_decay: {}, momentum:{}, batch size: {}, epoch: {}, seed: {}".format(state['arch'], num_params, state['lr'], state['weight_decay'], state['momentum'], state['train_batch'], state['epochs'], state['manualSeed']))
@@ -317,7 +331,20 @@ def run(rank, state):
             [state['lr'], train_loss, test_loss, train_acc, test_acc])
         
         # save model
+        is_best = test_acc > best_acc
+        
         best_acc = max(test_acc, best_acc)
+        if state['saveModel']:
+            save_checkpoint(
+                {
+                    'epoch': epoch + 1,
+                    'state_dict': model.state_dict(),
+                    'acc': test_acc,
+                    'best_acc': best_acc,
+                    'optimizer': optimizer.state_dict(),
+                },
+                is_best,
+                checkpoint=state['save_dir'])
         scheduler.step()
 
     train_logger.close()
@@ -401,8 +428,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             Select inputs and targets
             """
             
-            if epoch >= state['warmup']:
-                inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
+            inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
 
             if inputs.nelement() == 0:
                 bar.next()
