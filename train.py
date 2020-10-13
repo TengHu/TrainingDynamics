@@ -437,6 +437,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
             
             loss_hist += [np.percentile(selector.mask_calculator.historical_losses.history, [0, 25, 50, 75, 100])]
         
+        
         ## compute output
         outputs = model(inputs)
         loss = criterion(outputs, targets)

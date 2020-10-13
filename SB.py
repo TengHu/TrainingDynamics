@@ -103,6 +103,10 @@ class SBSelector(object):
             return new_inputs, new_targets, 1 / new_upweights, new_indexes
         else: 
             return torch.empty(0), torch.empty(0), torch.empty(0), torch.empty(0)
+        
+        
+    def _update1(self, inputs, targets, mask, indexes, upweights):
+        return inputs[mask], targets[mask], 1 / upweights[mask], indexes[mask]
     
     def _update_from_stale(self, inputs, targets, indexes):
         mask, weights = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
@@ -116,7 +120,7 @@ class SBSelector(object):
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
         
-        return self._update(inputs, targets, mask, indexes, weights)
+        return self._update1(inputs, targets, mask, indexes, weights)
             
     def _use_stale(self, epoch):
         return self.staleness != 0 and epoch % self.staleness != 0
