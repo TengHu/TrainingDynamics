@@ -106,7 +106,7 @@ class SBSelector(object):
         
         
     def _update1(self, inputs, targets, mask, indexes, upweights):
-        return inputs[mask], targets[mask], 1 / upweights[mask], indexes[mask]
+        return inputs[mask], targets[mask],  send_data_to_device(torch.Tensor(1 / upweights[mask]), self.rank), indexes[mask]
     
     def _update_from_stale(self, inputs, targets, indexes):
         mask, weights = self.mask_calculator.select(np.array([self.stale_loss[i.item()] for i in indexes]))
