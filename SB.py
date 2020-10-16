@@ -120,7 +120,7 @@ class SBSelector(object):
             for i, idx in enumerate(index):
                 self.stale_loss[idx.item()] = losses[i].item()
         
-        return self._update1(inputs, targets, mask, indexes, weights)
+        return self._update(inputs, targets, mask, indexes, weights)
             
     def _use_stale(self, epoch):
         return self.staleness != 0 and epoch % self.staleness != 0
