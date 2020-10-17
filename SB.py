@@ -66,7 +66,7 @@ class BatchedRelativeProbabilityCalculator(object):
        
     
 class SBSelector(object):
-    def __init__(self, size_to_backprops, beta, history, floor, mode, staleness, rank):
+    def __init__(self, size_to_backprops, beta, history, floor, mode, staleness, rank, target=0):
         self.size_to_backprops = size_to_backprops
         
         self.candidate_indexes = send_data_to_device(torch.LongTensor([]), rank)
@@ -80,6 +80,8 @@ class SBSelector(object):
         
         self.mask_calculator = BatchedRelativeProbabilityCalculator(history, beta, floor)
         self.stale_loss = collections.defaultdict()
+        
+        self.target = target
         
     
     def _update(self, inputs, targets, mask, indexes, upweights):
@@ -148,10 +150,11 @@ class SBSelector(object):
             # Selection pass
             outputs = model(inputs)
             
-            new_targets = outputs.topk(k=1, dim=-1)[1][:,-1]
-            
-            loss = criterion(outputs, targets)
-            
+            if self.target == 0:
+                loss = criterion(outputs, targets)
+            elif self.target == 1:
+                new_targets = outputs.topk(k=1, dim=-1)[1][:,-1]
+                loss = criterion(outputs, new_targets)
             
             if self.mode == 2:
                 loss = send_data_to_device(torch.rand(loss.shape), self.rank)

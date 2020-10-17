@@ -165,8 +165,9 @@ def arguments():
     parser.add_argument('--upweight', type=int, default=0, help='upweight loss for SB')
     parser.add_argument('--mode', type=int, default=0, help='selection mode for SB')
     
-    parser.add_argument('--saveModel', type=int, default=1, help='save the modeel')
-
+    parser.add_argument('--saveModel', type=int, default=1, help='save the model')
+    parser.add_argument('--target', type=int, default=0, help='target for SB')
+    
     save_dir = './result-' + uuid.uuid4().hex
     parser.add_argument('--save_dir', default=save_dir + '/', type=str)
 
@@ -268,7 +269,7 @@ def run(rank, state):
     """
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=state['schedule'], gamma=state['gamma'])
     if state['selective_backprop']:
-        selector = SBSelector(trainloader.batch_size, state['beta'], state['history'], state['floor'], state['mode'], state['staleness'], rank)
+        selector = SBSelector(trainloader.batch_size, state['beta'], state['history'], state['floor'], state['mode'], state['staleness'], rank, state['target'])
     else:
         selector = None
         
@@ -291,7 +292,7 @@ def run(rank, state):
     train_logger.append_blob("model: {}, num_params: {}, lr: {}, weight_decay: {}, momentum:{}, batch size: {}, epoch: {}, seed: {}".format(state['arch'], num_params, state['lr'], state['weight_decay'], state['momentum'], state['train_batch'], state['epochs'], state['manualSeed']))
     
     if state['selective_backprop']:
-        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}, upweight {}, mode {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor'], state['upweight'], state['mode']))     
+        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}, upweight {}, mode {}, target {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor'], state['upweight'], state['mode'], state['target']))     
     
     train_logger.set_names([
         'Learning Rate', 'Train Loss', 'Test Loss', 'Train Acc.',
