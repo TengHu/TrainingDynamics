@@ -325,10 +325,9 @@ def run(rank, state):
             test(rank, validloader, valid_logger, model, criterion, epoch)
             
         test_loss, test_acc = test(rank, testloader, test_logger, model, criterion, epoch)
-
+        
         # append logger file
-        train_logger.append(
-            [state['lr'], train_loss, test_loss, train_acc, test_acc])
+        train_logger.append([state['lr'], train_loss, test_loss, train_acc, test_acc])
         
         # save model
         is_best = test_acc > best_acc
@@ -381,8 +380,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     train_pred1 = []
     
     
-    histogram = BatchedRelativeProbabilityCalculator(1024, 1, 0)
-    
+    histogram1 = BatchedRelativeProbabilityCalculator(1024, 1, 0)
+    histogram2 = BatchedRelativeProbabilityCalculator(1024, 1, 0)
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
@@ -404,8 +403,13 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         ############################################################################################################################################################
        
         outputs_ = model(inputs)
-        loss_ = criterion(outputs_, targets)
-        _, percentiles = histogram.select(loss_.detach().cpu().numpy())
+        new_targets = outputs_.topk(k=1, dim=-1)[1][:,-1]
+        
+        loss_1 = criterion(outputs_, targets)
+        _, percentiles_1 = histogram1.select(loss_1.detach().cpu().numpy())
+        
+        loss_2 = criterion(outputs_, new_targets)
+        _, percentiles_2 = histogram2.select(loss_2.detach().cpu().numpy())
         
         
         topk = (1, 5)
@@ -414,8 +418,10 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         corrects_ = (targets == pred[0]).detach().cpu().numpy()
         buf = list(zip(indexes.cpu().detach().numpy(),
-                                  loss_.cpu().detach().numpy(),
-                                  percentiles,
+                                  loss_1.cpu().detach().numpy(),
+                                  loss_2.cpu().detach().numpy(),
+                                  percentiles_1,
+                                  percentiles_2,
                                   corrects_))
         
         if LOG_TO_DISK:
@@ -447,8 +453,8 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         
         if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
-            #print ("\n" + str(upweights.max().item()))
-            loss = loss * upweights
+            #print ("\n" + str(upweights.max().item())
+            loss = loss * torch.Tensor(upweights)
             multipliers += [upweights.cpu().detach().numpy()]
         else:
             multipliers += [np.ones(indexes.shape)]
@@ -524,7 +530,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         # scheduler on backprops
         '''for _ in range(loss.nelement()):
             scheduler.step()'''
-        
+        del inputs, targets, outputs, loss
         
     ### SelectiveBP epoch
     if LOG_TO_DISK:
@@ -538,7 +544,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         train_logger.blob['multipliers'] += [multipliers]
         train_logger.blob['loss_hist'] += [loss_hist]
         
-    del inputs, targets, outputs, loss
+    
     
     torch.cuda.empty_cache()
     bar.finish()
