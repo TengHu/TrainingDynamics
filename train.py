@@ -494,7 +494,7 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         if LOG_TO_DISK:
             train_logger.blob['backprops'] += [loss.nelement()]
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
-            train_logger.blob['percentiles'] += [list(zip(indexes.cpu().detach().numpy(),percentiles))]
+            #train_logger.blob['percentiles'] += [list(zip(indexes.cpu().detach().numpy(),percentiles))]
             
             
             
@@ -540,10 +540,10 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         train_logger.blob['train_pred1'] += [train_pred1]
         train_logger.blob['train_loss'] += [train_loss]
         
-        train_logger.blob['correct_pred'] += [correct_pred_buf]
+        #train_logger.blob['correct_pred'] += [correct_pred_buf]
         train_logger.blob['examples'] += [examples_buf]
-        train_logger.blob['multipliers'] += [multipliers]
-        train_logger.blob['loss_hist'] += [loss_hist]
+        #train_logger.blob['multipliers'] += [multipliers]
+        #train_logger.blob['loss_hist'] += [loss_hist]
         
     
     
