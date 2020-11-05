@@ -4,6 +4,8 @@ from train_config import send_data_to_device
 import math
 import collections
 import numpy as np
+import torch.nn.functional as F
+            
 
 r"""
 Mostly copied from https://anonymous.4open.science/repository/c6d4060d-bdac-4d31-839e-8579650255b3/lib/calculators.py
@@ -139,9 +141,25 @@ class SBSelector(object):
             return self.update_examples_with_grad_norm(model, criterion, inputs, targets, indexes, epoch)
         elif self.mode == 2:
             return self.update_examples_with_loss(model, criterion, inputs, targets, indexes, epoch)
-        
+        elif self.mode == 3:
+            return self.update_examples_with_entropy(model, criterion, inputs, targets, indexes, epoch)
+    
+    
+    def _entropy(self,tensor):
+        return (tensor.log2() * -tensor).sum(dim=-1)
         
     
+    def update_examples_with_entropy(self, model, criterion, inputs, targets, indexes, epoch):
+        if self._use_stale(epoch):
+            return self._update_from_stale(inputs, targets, indexes)
+        else:
+            # Selection pass
+            outputs = model(inputs)
+            
+            preds = F.softmax(outputs, dim=-1)
+            entropies = self._entropy(preds)
+            
+            return self._update_fresh(inputs, targets, entropies, indexes)
     
     def update_examples_with_loss(self, model, criterion, inputs, targets, indexes, epoch):
         if self._use_stale(epoch):
