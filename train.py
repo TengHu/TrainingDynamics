@@ -23,6 +23,7 @@ from utils.cifar100 import IndexedCifar100
 import random
 from train_config import *
 from SB import SBSelector,BatchedRelativeProbabilityCalculator
+from Kath18 import KathLossSelector
 
 
 #from scheduler import BackpropsMultiStepLR
@@ -157,6 +158,14 @@ def arguments():
     parser.add_argument('--manualSeed', type=int, help='manual seed')
     
     parser.add_argument('--selective-backprop', type=int, default=0, help='enable SB')
+    parser.add_argument('--kath', type=int, default=0, help='enable kath')
+    parser.add_argument(
+        '--kath-pool',
+        default=64,
+        type=int,
+        metavar='N',
+        help='')
+    
     parser.add_argument('--beta', type=int, default=1, help='beta for SB')
     parser.add_argument('--history', type=int, default=1024, help='history size for SB')
     parser.add_argument('--staleness', type=int, default=0, help='staleness for SB')
@@ -268,8 +277,11 @@ def run(rank, state):
     Look https://github.com/pytorch/pytorch/blob/v1.4.0/torch/optim/lr_scheduler.py#L394 for implementations.
     """
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=state['schedule'], gamma=state['gamma'])
+    
     if state['selective_backprop']:
         selector = SBSelector(trainloader.batch_size, state['beta'], state['history'], state['floor'], state['mode'], state['staleness'], rank, state['target'])
+    elif state['kath']:
+        selector = KathLossSelector(trainloader.batch_size, state['kath_pool'], rank)
     else:
         selector = None
         
@@ -431,26 +443,25 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         
         #####################################################################################################################
        
-        if state['selective_backprop']:
+        if state['selective_backprop'] or state['kath']:
             r"""
             Select inputs and targets
             """
             
             inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
+            
 
             if inputs.nelement() == 0:
                 bar.next()
                 continue
-            
-            loss_hist += [np.percentile(selector.mask_calculator.historical_losses.history, [0, 25, 50, 75, 100])]
-        
         
         ## compute output
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         
         
-        
+        if state['kath']:
+            pass #loss = loss * torch.Tensor(upweights)
         
         
         if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
