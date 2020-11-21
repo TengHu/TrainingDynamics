@@ -109,8 +109,8 @@ class KathLossSelector(object):
                 outputs = model(self.candidate_inputs)
                 losses = criterion(outputs, self.candidate_targets)
                 
-                probs = self.get_probabilities(losses.detach().numpy())
-                upweights = self.get_upweights(losses.detach().numpy())
+                probs = self.get_probabilities(losses.cpu().detach().numpy())
+                upweights = self.get_upweights(losses.cpu().detach().numpy())
                 
                 indices = np.random.choice(range(len(self.candidate_indexes)), self.size_to_backprops, replace=True, p=probs)
                 
@@ -119,7 +119,7 @@ class KathLossSelector(object):
                 indexes = self.candidate_indexes[indices]
                 upweights = upweights[indices]
                 
-                self.condition.update(losses.detach().numpy())
+                self.condition.update(losses.cpu().detach().numpy())
                 self.clear_pool()
                 
                 return inputs, targets, upweights, indexes
@@ -136,7 +136,7 @@ class KathLossSelector(object):
                 targets = self.candidate_targets
                 indexes = self.candidate_indexes
                 
-                self.condition.update(losses.detach().numpy())
+                self.condition.update(losses.cpu().detach().numpy())
                 self.clear_pool()
                 
                 return inputs, targets, torch.ones(indexes.shape), indexes
