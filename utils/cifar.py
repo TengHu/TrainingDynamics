@@ -29,20 +29,24 @@ class IndexedCifar10(Dataset):
             root=root, download=download, train=train, transform=transform)
         
         if train:
-            pass
-            #self.random_labels = np.load('dataset_overrides/cifar10/25pct_random_label.npy')
-            #self.examples_to_add_noise = set(np.load('dataset_overrides/cifar10/25pct_example_to_add_noise.npy'))
-            #self.noise = torch.randn(self.cifar10.data.shape)
+            self.corrputions = np.load('dataset_overrides/cifar10/75pct_corruptions.npy', allow_pickle=True).item()
+            self.shuffle_idx = torch.randperm(1 * 32 * 32)
+            
         
     def __getitem__(self, index):
         data, target = self.cifar10[index]
         
-        if hasattr(self, 'random_labels'):
-            target = self.random_labels[index]
+        if hasattr(self, 'corrputions') and index in self.corrputions:
             
-        if hasattr(self, 'examples_to_add_noise'):
-            if index in self.examples_to_add_noise:
-                data = (data + self.noise[index].transpose(0,2))    
+            # random label
+            target = self.corrputions[index]
+            
+            # gaussian 
+            #data = data.std() * torch.randn(data.shape) + data.mean()
+            
+            # permutation of pixels
+            #data = torch.stack([x.view(-1)[self.shuffle_idx].view(32, 32) for x in data], dim=0)
+
         
         return data, target, index
 
