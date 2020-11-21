@@ -23,9 +23,11 @@ def train_worker(rank, seed, lr):
     print('Training Model \n')
     
     
-    # Cifar100
-    os.system("python train.py --dataset cifar10 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 80 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 100  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.0 --rank {} --saveModel 1".format(lr, save_dir, seed, rank))
+    # Kath
+    os.system("python train.py --dataset cifar10 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 80 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 100  --manualSeed {} --kath 0 --kath-pool 256 --rank {} --saveModel 0".format(lr, save_dir, seed, rank))
     
+    # SB
+    os.system("python train.py --dataset cifar10 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 80 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 100  --manualSeed {} --selective-backprop 0 --beta 1 --mode 0 --floor 0.0 --rank {} --saveModel 0".format(lr, save_dir, seed, rank))
     
     # Cifar100 resume
     #os.system("python train.py --dataset cifar100 --arch wrn --lr {} --momentum 0.9 --train-batch 128  --test-batch 256 --save_dir ./{} --schedule 60 120 160 --gamma 0.2 --weight-decay 0.0005 --workers 8 --epochs 200  --manualSeed {} --selective-backprop 0 --beta 1 --upweight 0 --mode 0 --floor 0.05 --rank {} --resume {}/recent.pth.tar".format(lr, save_dir, seed, rank, save_dir))
