@@ -19,10 +19,12 @@ import shutil
 import torch.distributed as dist
 from utils.mnist import IndexedMNIST
 from utils.cifar import IndexedCifar10
+from utils.cifar100 import IndexedCifar100
 import random
 from train_config import *
-from SB import SBSelector
-from compaction import CompactionSelector
+from SB import SBSelector,BatchedRelativeProbabilityCalculator
+from Kath18 import KathLossSelector
+
 
 #from scheduler import BackpropsMultiStepLR
 try:
@@ -35,7 +37,7 @@ torch.backends.cudnn.benchmark = True
 torch.backends.cudnn.enabled = True
 
 
-def save_checkpoint(state, is_best, checkpoint, filename='finetuned.pth.tar'):
+def save_checkpoint(state, is_best, checkpoint, filename='recent.pth.tar'):
     if LOG_TO_DISK:
         filepath = os.path.join(checkpoint, filename)
         torch.save(state, filepath)
@@ -46,6 +48,9 @@ def get_dataset(state):
     if state['dataset'] == 'cifar10':
         dataloader = IndexedCifar10
         num_classes = 10
+    elif state['dataset'] == 'cifar100':
+        dataloader = IndexedCifar100
+        num_classes = 100
     elif state['dataset'] == 'mnist':
         dataloader = IndexedMNIST
         num_classes = 10
@@ -134,13 +139,44 @@ def arguments():
         type=str,
         metavar='PATH',
         help='path to latest checkpoint (default: none)')
+    
+    
+    parser.add_argument(
+        '--noise-path',
+        default='',
+        type=str,
+        metavar='PATH',
+        help='path to latest checkpoint (default: none)')
+    
+    
+    parser.add_argument('--rank', type=int, default=0, help='Rank.')
 
     # Architecture
     parser.add_argument('--arch', '-a', metavar='ARCH', default='fcnet')
     parser.add_argument('--depth', type=int, default=8, help='Model depth.')
     # Miscs
     parser.add_argument('--manualSeed', type=int, help='manual seed')
-
+    
+    parser.add_argument('--selective-backprop', type=int, default=0, help='enable SB')
+    parser.add_argument('--kath', type=int, default=0, help='enable kath')
+    parser.add_argument(
+        '--kath-pool',
+        default=64,
+        type=int,
+        metavar='N',
+        help='')
+    
+    parser.add_argument('--beta', type=int, default=1, help='beta for SB')
+    parser.add_argument('--history', type=int, default=1024, help='history size for SB')
+    parser.add_argument('--staleness', type=int, default=0, help='staleness for SB')
+    parser.add_argument('--warmup', type=int, default=0, help='warmup epoch for SB')
+    parser.add_argument('--floor', type=float, default=0, help='prob floor for SB')
+    parser.add_argument('--upweight', type=int, default=0, help='upweight loss for SB')
+    parser.add_argument('--mode', type=int, default=0, help='selection mode for SB')
+    
+    parser.add_argument('--saveModel', type=int, default=1, help='save the model')
+    parser.add_argument('--target', type=int, default=0, help='target for SB')
+    
     save_dir = './result-' + uuid.uuid4().hex
     parser.add_argument('--save_dir', default=save_dir + '/', type=str)
 
@@ -152,7 +188,7 @@ def _main(rank=0):
     state = {k: v for k, v in args._get_kwargs()}
     set_random_seed(state)
     print(state)
-    run(rank, state)
+    run(state['rank'], state)
     
     
 def main(rank=0):
@@ -163,6 +199,7 @@ def run(rank, state):
     global global_step
     global best_acc
     global train_logger
+    global valid_logger
     global test_logger
     global num_classes
     
@@ -181,19 +218,32 @@ def run(rank, state):
 
     # Data
     print('==> Preparing dataset %s' % state['dataset'])
+    
     trainset = dataloader(
         root='./data', train=True, download=True,transform=transform_train)
+    testset = dataloader(
+        root='./data', train=False, download=False, transform=transform_test)
+    
+    # train/valid/test split
+    testset, validset = torch.utils.data.random_split(testset, [len(testset) - VALID_SIZE, VALID_SIZE])
+    
     trainloader = data.DataLoader(
         trainset,
         batch_size=state['train_batch'],
         shuffle=True,
         pin_memory=True,
+        drop_last=True,
         num_workers=state['workers'])
     
-    
+    if VALID_SIZE > 0:
+        validloader = data.DataLoader(
+            validset,
+            batch_size=state['test_batch'],
+            shuffle=True,
+            pin_memory=True,
+            num_workers=state['workers'])
 
-    testset = dataloader(
-        root='./data', train=False, download=False, transform=transform_test)
+    
     testloader = data.DataLoader(
         testset,
         batch_size=state['test_batch'],
@@ -228,64 +278,51 @@ def run(rank, state):
     """
     scheduler = torch.optim.lr_scheduler.MultiStepLR(optimizer, milestones=state['schedule'], gamma=state['gamma'])
     
+    if state['selective_backprop']:
+        selector = SBSelector(trainloader.batch_size, state['beta'], state['history'], state['floor'], state['mode'], state['staleness'], rank, state['target'])
+    elif state['kath']:
+        selector = KathLossSelector(trainloader.batch_size, state['kath_pool'], rank)
+    else:
+        selector = None
+        
     title = state['arch']
-
+    
+    
     if state['resume']:
-        # Load checkpoint.
         print('==> Resuming from checkpoint..')
         assert os.path.isfile(
             state['resume']), 'Error: no checkpoint directory found!'
-        state['save_dir'] = os.path.dirname(state['resume'])
         checkpoint = torch.load(state['resume'])
         best_acc = checkpoint['best_acc']
         start_epoch = checkpoint['epoch']
         model.load_state_dict(checkpoint['state_dict'])
         optimizer.load_state_dict(checkpoint['optimizer'])
-
-        train_logger = Logger(
-            os.path.join(state['save_dir'], 'train-log.txt'),
-            resume=True)
-        test_logger = Logger(
-            os.path.join(state['save_dir'], 'test-log.txt'),
-            resume=True)
-    else:
-        train_logger = Logger(
-            os.path.join(state['save_dir'], 'train-log.txt'))
-        
-        
-        
-    train_logger.append_blob("model: {}, num_params: {}, lr: {}, weight_decay: {}, momentum:{}, batch size: {}, epoch: {}, seed: {}".format(state['arch'], num_params, state['lr'], state['weight_decay'], state['momentum'], state['train_batch'], state['epochs'], state['manualSeed']))
-
-    if CORRECT_COMPACTION:
-        train_logger.append_blob("correct compaction: {}, sample prob: {}, epoch: {}, stale: {}, confidence {}".format(CORRECT_COMPACTION, COMPACTION_SAMPLE_PROB, WARMUP_EPOCH, COMPACTION_STALNESS, CONFIDENT_CORRECT_THRESH))
-
-    if SELECTIVE_BACKPROP:
-        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}".format(SB_BETA, SB_HISTORY_SIZE, SB_STALNESS, SB_WARMUP_EPOCH, PROB_FLOOR))           
     
-    if SELECTIVE_BACKPROP:
-        selector = SBSelector(trainloader.batch_size, rank)
-    elif CORRECT_COMPACTION:
-        selector = CompactionSelector(rank)
-    else:
-        selector = None
+    
+    train_logger = Logger(os.path.join(state['save_dir'], 'train-log.txt'))
+    
+    train_logger.append_blob("model: {}, num_params: {}, lr: {}, weight_decay: {}, momentum:{}, batch size: {}, epoch: {}, seed: {}".format(state['arch'], num_params, state['lr'], state['weight_decay'], state['momentum'], state['train_batch'], state['epochs'], state['manualSeed']))
+    
+    if state['selective_backprop']:
+        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}, upweight {}, mode {}, target {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor'], state['upweight'], state['mode'], state['target']))     
     
     train_logger.set_names([
-        'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.',
-        'Valid Acc.'
+        'Learning Rate', 'Train Loss', 'Test Loss', 'Train Acc.',
+        'Test Acc.'
     ])
-
-    test_logger = Logger(
-        os.path.join(state['save_dir'], 'test-log.txt'))
-
-
-    test_logger.set_names([
-        'Learning Rate', 'Train Loss', 'Valid Loss', 'Train Acc.',
-        'Valid Acc.'
-    ])
+    
+    
+    valid_logger = Logger(
+        os.path.join(state['save_dir'], 'valid-log.txt'))
 
     
-    ## run testset before training
-    test_loss, test_acc = test(rank, testloader, model, criterion, -1)
+    test_logger = Logger(
+        os.path.join(state['save_dir'], 'test-log.txt'))
+    
+    ## run valid/testset before training
+    if VALID_SIZE > 0:
+        valid_loss, valid_acc = test(rank, validloader, valid_logger, model, criterion, -1)
+    test(rank, testloader, test_logger, model, criterion, -1)
     
     # Train and val
     for epoch in range(start_epoch, state['epochs']):
@@ -293,41 +330,44 @@ def run(rank, state):
         print('\nEpoch: [%d | %d] LR: %f' % (epoch + 1, state['epochs'],
                                              state['lr']))
         
-        
         # BEFORE_RUN: accuracy_log
         accuracy_log = []
-        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector)
-        test_loss, test_acc = test(rank, testloader, model, criterion, epoch)
-
+        train_loss, train_acc = train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector, state)
+        
+        if VALID_SIZE > 0:
+            test(rank, validloader, valid_logger, model, criterion, epoch)
+            
+        test_loss, test_acc = test(rank, testloader, test_logger, model, criterion, epoch)
+        
         # append logger file
-        train_logger.append(
-            [state['lr'], train_loss, test_loss, train_acc, test_acc])
+        train_logger.append([state['lr'], train_loss, test_loss, train_acc, test_acc])
         
-        
-        test_logger.append(
-            [state['lr'], train_loss, test_loss, train_acc, test_acc])
-
         # save model
         is_best = test_acc > best_acc
+        
         best_acc = max(test_acc, best_acc)
-        save_checkpoint(
-            {
-                'epoch': epoch + 1,
-                'state_dict': model.state_dict(),
-                'acc': test_acc,
-                'best_acc': best_acc,
-                'optimizer': optimizer.state_dict(),
-            },
-            is_best,
-            checkpoint=state['save_dir'])
+        
+        if state['saveModel']:
+            save_checkpoint(
+                {
+                    'epoch': epoch + 1,
+                    'state_dict': model.state_dict(),
+                    'acc': test_acc,
+                    'best_acc': best_acc,
+                    'optimizer': optimizer.state_dict(),
+                },
+                is_best,
+                checkpoint=state['save_dir'])
+        scheduler.step()
 
     train_logger.close()
+    valid_logger.close()
     test_logger.close()
 
     print('Best acc:')
     print(best_acc)
 
-def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector):
+def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, scheduler, selector, state):
     global global_step
     
     model.train()
@@ -344,15 +384,28 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
     
     num_backprops = 0
     
+    correct_pred_buf = [] 
+    examples_buf = []
+    multipliers = []
+    loss_hist = []
+    percentiles = []
+    train_loss = []
+    train_pred1 = []
+    
+    
+    histogram1 = BatchedRelativeProbabilityCalculator(1024, 1, 0)
+    histogram2 = BatchedRelativeProbabilityCalculator(1024, 1, 0)
     if selector is not None:
         selector.init_for_this_epoch(epoch)
     
-    for batch_idx, (inputs, targets, index) in enumerate(trainloader):
+    
+    
+    for batch_idx, (inputs, targets, indexes) in enumerate(trainloader):
         optimizer.zero_grad()
         model.train()
         
         
-        if index.nelement() == 0:
+        if indexes.nelement() == 0:
             continue
         
         #######################################
@@ -360,39 +413,68 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         data_time.update(time.time() - end)
         
         inputs, targets = send_data_to_device(inputs, rank), send_data_to_device(targets, rank)
-        #######################################
+        ############################################################################################################################################################
+       
+        outputs_ = model(inputs)
+        new_targets = outputs_.topk(k=1, dim=-1)[1][:,-1]
+        
+        loss_1 = criterion(outputs_, targets)
+        _, percentiles_1 = histogram1.select(loss_1.detach().cpu().numpy())
+        
+        loss_2 = criterion(outputs_, new_targets)
+        _, percentiles_2 = histogram2.select(loss_2.detach().cpu().numpy())
         
         
-        if SELECTIVE_BACKPROP:
+        topk = (1, 5)
+        pred, res = compute_pred(targets, outputs_, topk)
+        prec1, prec5 = res
+        
+        corrects_ = (targets == pred[0]).detach().cpu().numpy()
+        buf = list(zip(indexes.cpu().detach().numpy(),
+                                  loss_1.cpu().detach().numpy(),
+                                  loss_2.cpu().detach().numpy(),
+                                  percentiles_1,
+                                  percentiles_2,
+                                  corrects_))
+        
+        if LOG_TO_DISK:
+            train_logger.blob['eval'] += [buf]
+        
+        
+        #####################################################################################################################
+       
+        if state['selective_backprop'] or state['kath']:
             r"""
             Select inputs and targets
             """
             
-            if epoch >= SB_WARMUP_EPOCH:
-                inputs, targets, upweights = selector.update_examples(model, criterion, inputs, targets, index, losses, epoch)
-
+            inputs, targets, upweights, indexes = selector.update_examples(model, criterion, inputs, targets, indexes, epoch)
             
+
             if inputs.nelement() == 0:
                 bar.next()
                 continue
-        
         
         ## compute output
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         
         
-        if SELECTIVE_BACKPROP and UPWEIGHT_LOSS and (epoch >= SB_WARMUP_EPOCH):
-            #print ("\n" + str(upweights.max().item()))
-            loss = loss * upweights
+        if state['kath']:
+            pass #loss = loss * torch.Tensor(upweights)
         
+        
+        if state['selective_backprop'] and state['upweight'] and (epoch >= state['warmup']):
+            #print ("\n" + str(upweights.max().item())
+            loss = loss * torch.Tensor(upweights)
+            multipliers += [upweights.cpu().detach().numpy()]
+        else:
+            multipliers += [np.ones(indexes.shape)]
+                
         #####################################################################################################################
         # TODO:niel.hu (MERGE)
         top1and2 = F.softmax(outputs, dim=-1).topk(2)[0].detach()
         confidence = (top1and2[..., 0] - top1and2[..., 1])
-        
-        if LOG_TO_DISK:
-            train_logger.blob['conf'] += [confidence.cpu().detach().numpy()]
         
          
         ######################
@@ -402,22 +484,12 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         topk = (1, 5)
         pred, res = compute_pred(targets, outputs, topk)
         prec1, prec5 = res
-        ##############################################################################
-        
-        if CORRECT_COMPACTION:
-            r"""
-            upweight losses
-            """
-            loss, index = selector.confcorrect_compaction(confidence, targets == pred[0], epoch, loss, index, rank)
-         
-        
         ################################################################################################################
-        
-        if LOG_TO_DISK:
-            train_logger.blob['train'] += [index.cpu().detach().numpy()]
-            train_logger.blob['train_loss'] += [loss.mean().item()]
-            train_logger.blob['train_pred1'] += [prec1.item() / 100]
-        
+        correct_pred_buf  += [indexes[targets == pred[0]].cpu().detach().numpy()]
+        examples_buf += [list(zip(indexes.cpu().detach().numpy(),loss.cpu().detach().numpy()))]
+        train_loss += [loss.mean().item()]
+        train_pred1 += [prec1.item() / 100]
+            
         #######################################
         
         loss_mean = loss.mean()
@@ -433,8 +505,13 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         if LOG_TO_DISK:
             train_logger.blob['backprops'] += [loss.nelement()]
             train_logger.blob['lr'] += [optimizer.param_groups[0]['lr']]
+            #train_logger.blob['percentiles'] += [list(zip(indexes.cpu().detach().numpy(),percentiles))]
             
+            
+            
+        
         num_backprops += loss.nelement()
+        
         loss_mean.backward()
         optimizer.step()
         
@@ -462,24 +539,31 @@ def train(rank, trainloader, model, criterion, optimizer, epoch, accuracy_log, s
         )
         bar.next()
         
-        for _ in range(loss.nelement()):
-            scheduler.step()
+        # scheduler on backprops
+        '''for _ in range(loss.nelement()):
+            scheduler.step()'''
+        del inputs, targets, outputs, loss
         
-        
-    ### SelectiveBP
+    ### SelectiveBP epoch
     if LOG_TO_DISK:
         train_logger.blob['epoch_backprops'] += [num_backprops]  
         train_logger.blob['epoch_pred1'] += [top1.avg / 100]
+        train_logger.blob['train_pred1'] += [train_pred1]
+        train_logger.blob['train_loss'] += [train_loss]
+        
+        #train_logger.blob['correct_pred'] += [correct_pred_buf]
+        train_logger.blob['examples'] += [examples_buf]
+        #train_logger.blob['multipliers'] += [multipliers]
+        #train_logger.blob['loss_hist'] += [loss_hist]
+        
     
-    del inputs, targets, outputs, loss
     
     torch.cuda.empty_cache()
     bar.finish()
     return (losses.avg, top1.avg)
 
 
-def test(rank, testloader, model, criterion, epoch):
-    global best_acc
+def test(rank, dataloader, logger, model, criterion, epoch):
 
     batch_time = AverageMeter()
     data_time = AverageMeter()
@@ -493,9 +577,9 @@ def test(rank, testloader, model, criterion, epoch):
     model.eval()
 
     end = time.time()
-    bar = Bar('Processing', max=len(testloader))
+    bar = Bar('Processing', max=len(dataloader))
     with torch.no_grad():
-        for batch_idx, (inputs, targets, index) in enumerate(testloader):
+        for batch_idx, (inputs, targets, index) in enumerate(dataloader):
             #######################################
             # measure data loading time
             data_time.update(time.time() - end)
@@ -522,7 +606,7 @@ def test(rank, testloader, model, criterion, epoch):
             ####################################### log accuracy
             
             if LOG_TO_DISK:
-                test_logger.blob['pred1'] += [prec1.item() / 100]
+                logger.blob['pred1'] += [prec1.item() / 100]
             
             
             #######################################
@@ -533,7 +617,7 @@ def test(rank, testloader, model, criterion, epoch):
             # plot progress
             bar.suffix = '({batch}/{size}) Data: {data:.3f}s | Batch: {bt:.3f}s | Total: {total:} | ETA: {eta:} | Loss: {loss:.4f} | top1: {top1: .4f} | top5: {top5: .4f}'.format(
                 batch=batch_idx + 1,
-                size=len(testloader),
+                size=len(dataloader),
                 data=data_time.avg,
                 bt=batch_time.avg,
                 total=bar.elapsed_td,
@@ -545,12 +629,13 @@ def test(rank, testloader, model, criterion, epoch):
             bar.next()
     
     if LOG_TO_DISK:
-        test_logger.blob['epoch_pred1'] += [top1.avg / 100]
+        logger.blob['epoch_pred1'] += [top1.avg / 100]
     
     del inputs, targets, outputs, loss
     torch.cuda.empty_cache()
     bar.finish()
     return (losses.avg, top1.avg)
+
 
 if __name__ == '__main__':
     import torch.multiprocessing as mp

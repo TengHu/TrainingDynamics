@@ -27,15 +27,23 @@ class IndexedMNIST(Dataset):
             root=root, download=download, train=train, transform=transform)
         
         if train:
-            self.random_labels = np.load('dataset_overrides/mnist/50pct_random_label.npy')
+            pass
+            #self.random_labels = np.load('dataset_overrides/mnist/75pct_random_label.npy')
+            #self.examples_to_add_noise = set(np.load('dataset_overrides/mnist/50pct_example_to_add_noise.npy'))
+            #self.noise = torch.randn(self.mnist.data.shape)
                 
         self.train = train
 
     def __getitem__(self, index):
         data, target = self.mnist[index]
         
+        
         if hasattr(self, 'random_labels'):
             target = self.random_labels[index]
+            
+        if hasattr(self, 'examples_to_add_noise'):
+            if index in self.examples_to_add_noise:
+                data = (data + self.noise[index].unsqueeze(0))
         
         return data, target, index
 
