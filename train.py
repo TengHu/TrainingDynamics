@@ -308,7 +308,7 @@ def run(rank, state):
         
         
     if state['kath']:
-        train_logger.append_blob("kath on, pool size {}".format(state['kath-pool']))   
+        train_logger.append_blob("kath on, pool size {}".format(state['kath_pool']))   
     
     train_logger.set_names([
         'Learning Rate', 'Train Loss', 'Test Loss', 'Train Acc.',
