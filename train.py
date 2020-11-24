@@ -304,7 +304,11 @@ def run(rank, state):
     train_logger.append_blob("model: {}, num_params: {}, lr: {}, weight_decay: {}, momentum:{}, batch size: {}, epoch: {}, seed: {}".format(state['arch'], num_params, state['lr'], state['weight_decay'], state['momentum'], state['train_batch'], state['epochs'], state['manualSeed']))
     
     if state['selective_backprop']:
-        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}, upweight {}, mode {}, target {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor'], state['upweight'], state['mode'], state['target']))     
+        train_logger.append_blob("selective backprops on, beta {}, history size {}, staleness {}, warmup epoch {}, prob floor {}, upweight {}, mode {}, target {}".format(state['beta'], state['history'], state['staleness'],  state['warmup'],  state['floor'], state['upweight'], state['mode'], state['target']))   
+        
+        
+    if state['kath']:
+        train_logger.append_blob("kath on, pool size {}".format(state['kath-pool']))   
     
     train_logger.set_names([
         'Learning Rate', 'Train Loss', 'Test Loss', 'Train Acc.',
